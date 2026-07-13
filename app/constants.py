@@ -36,6 +36,9 @@ DEFAULT_RATE_LIMIT_WINDOW = 60  # seconds
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50MB
 MAX_TEXT_LENGTH = 100_000  # characters sent to LLM
 
+# Allowed MIME types for upload
+ALLOWED_MIME_TYPES = [m.value for m in MimeType]
+
 # API
 API_VERSION = "v1"
 API_PREFIX = f"/api/{API_VERSION}"

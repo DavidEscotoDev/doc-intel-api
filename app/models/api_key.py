@@ -2,7 +2,8 @@
 """API Key database model."""
 
 from datetime import datetime
-from uuid import uuid4
+from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
 from sqlalchemy import (
     String,
     Integer,
@@ -17,13 +18,16 @@ from sqlalchemy import Uuid
 
 from app.database import Base
 
+if TYPE_CHECKING:
+    from app.models.document import Document
+
 
 class APIKey(Base):
     """API Key for authentication and rate limiting."""
 
     __tablename__ = "api_keys"
 
-    id: Mapped[uuid4] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,

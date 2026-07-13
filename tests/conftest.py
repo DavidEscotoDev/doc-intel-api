@@ -20,6 +20,7 @@ from app.main import create_app
 from app.models.api_key import APIKey
 from app.models.document import Document
 from app.models.analysis import Analysis
+from app.constants import DocumentStatus
 
 
 # Test settings
@@ -141,7 +142,7 @@ async def test_document(db_session: AsyncSession, test_api_key: APIKey) -> Docum
         file_path="/tmp/test.pdf",
         mime_type="application/pdf",
         file_size=1024,
-        status="uploaded",
+        status=DocumentStatus.UPLOADED,
         api_key_id=test_api_key.id,
     )
     db_session.add(doc)

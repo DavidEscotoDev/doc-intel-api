@@ -1,0 +1,39 @@
+# render.yaml
+services:
+  - type: web
+    name: document-intelligence-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: docintel-db
+          property: connectionString
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: azure_blob
+      - key: AZURE_STORAGE_ACCOUNT
+        sync: false
+      - key: AZURE_STORAGE_CONTAINER
+        value: documents
+      - key: AZURE_STORAGE_CONNECTION_STRING
+        sync: false
+      - key: AZURE_KEY_VAULT_URL
+        sync: false
+      - key: AZURE_MONITOR_CONNECTION_STRING
+        sync: false
+      - key: OTEL_SERVICE_NAME
+        value: document-intelligence-api
+      - key: LOG_LEVEL
+        value: INFO
+    healthCheckPath: /health/ready
+    autoDeploy: true
+
+databases:
+  - name: docintel-db
+    databaseName: docintel
+    user: docintel
+    plan: free

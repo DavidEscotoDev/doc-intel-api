@@ -8,26 +8,28 @@ import structlog
 from structlog.types import EventDict, Processor
 
 
-def add_correlation_id(_, __, event_dict: EventDict) -> EventDict:
+def add_correlation_id(_: Any, __: Any, event_dict: EventDict) -> EventDict:
     """Add correlation ID from contextvars if available."""
     try:
-        from contextvars import copy_context
+        from contextvars import copy_context, ContextVar
         ctx = copy_context()
-        if "correlation_id" in ctx:
-            event_dict["correlation_id"] = ctx["correlation_id"]
+        correlation_id_var: ContextVar[str | None] = ContextVar("correlation_id", default=None)
+        correlation_id = ctx.get(correlation_id_var)
+        if correlation_id is not None:
+            event_dict["correlation_id"] = correlation_id
     except Exception:
         pass
     return event_dict
 
 
-def add_service_info(_, __, event_dict: EventDict) -> EventDict:
+def add_service_info(_: Any, __: Any, event_dict: EventDict) -> EventDict:
     """Add service metadata to all log entries."""
     event_dict["service"] = "document-intelligence-api"
     event_dict["version"] = "1.0.0"
     return event_dict
 
 
-def drop_color_message_key(_, __, event_dict: EventDict) -> EventDict:
+def drop_color_message_key(_: Any, __: Any, event_dict: EventDict) -> EventDict:
     """Remove color_message key added by structlog.dev.ConsoleRenderer."""
     event_dict.pop("color_message", None)
     return event_dict
@@ -52,14 +54,14 @@ def setup_logging(log_level: str = "INFO", json_logs: bool = False) -> None:
 
     if json_logs:
         # Production: JSON output for log aggregation
-        renderer: structlog.processors.JSONRenderer = structlog.processors.JSONRenderer()
+        renderer: Processor = structlog.processors.JSONRenderer()
         processors = shared_processors + [renderer]
     else:
         # Development: Human-readable console output
-        renderer = structlog.dev.ConsoleRenderer(colors=True)
+        console_renderer: Processor = structlog.dev.ConsoleRenderer(colors=True)
         processors = shared_processors + [
             structlog.processors.ExceptionPrettyPrinter(),
-            renderer,
+            console_renderer,
         ]
 
     structlog.configure(
@@ -85,4 +87,4 @@ def setup_logging(log_level: str = "INFO", json_logs: bool = False) -> None:
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Get a structured logger instance."""
-    return structlog.get_logger(name)
+    return structlog.get_logger(name)  # type: ignore[no-any-return]

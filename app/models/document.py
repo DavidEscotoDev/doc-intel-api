@@ -2,7 +2,8 @@
 """Document database model."""
 
 from datetime import datetime
-from uuid import uuid4
+from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
 from sqlalchemy import (
     String,
     Text,
@@ -19,13 +20,17 @@ from sqlalchemy import Uuid
 from app.database import Base
 from app.constants import DocumentStatus
 
+if TYPE_CHECKING:
+    from app.models.api_key import APIKey
+    from app.models.analysis import Analysis
+
 
 class Document(Base):
     """Document model representing uploaded files."""
 
     __tablename__ = "documents"
 
-    id: Mapped[uuid4] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
@@ -42,7 +47,7 @@ class Document(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Foreign keys
-    api_key_id: Mapped[uuid4] = mapped_column(
+    api_key_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("api_keys.id", ondelete="CASCADE"),
         nullable=False,

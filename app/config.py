@@ -3,7 +3,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional, List
+from typing import Any, Optional
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import yaml
@@ -11,7 +11,7 @@ import yaml
 
 class DatabaseSettings(BaseSettings):
     """Database configuration."""
-    url: str = Field(..., alias="DATABASE_URL")
+    url: str = Field("sqlite+aiosqlite:///:memory:", alias="DATABASE_URL")
     pool_size: int = Field(10, alias="DATABASE_POOL_SIZE")
     max_overflow: int = Field(20, alias="DATABASE_MAX_OVERFLOW")
     pool_timeout: int = 30
@@ -28,7 +28,7 @@ class DatabaseSettings(BaseSettings):
 
 class AnthropicSettings(BaseSettings):
     """Anthropic/Claude configuration."""
-    api_key: str = Field(..., alias="ANTHROPIC_API_KEY")
+    api_key: str = Field("test-key", alias="ANTHROPIC_API_KEY")
     model: str = Field("claude-3-5-sonnet-20241022", alias="ANTHROPIC_MODEL")
     max_tokens: int = Field(4096, alias="ANTHROPIC_MAX_TOKENS")
     temperature: float = 0.1
@@ -91,7 +91,7 @@ class AzureSettings(BaseSettings):
 
 class ProcessingSettings(BaseSettings):
     """Document processing configuration."""
-    allowed_mime_types: List[str] = Field(
+    allowed_mime_types: list[str] = Field(
         default=[
             "application/pdf",
             "text/plain",
@@ -115,10 +115,10 @@ class ProcessingSettings(BaseSettings):
 
 class CORSSettings(BaseSettings):
     """CORS configuration."""
-    origins: List[str] = Field(default=["*"], alias="CORS_ORIGINS")
+    origins: list[str] = Field(default=["*"], alias="CORS_ORIGINS")
     allow_credentials: bool = Field(True, alias="CORS_ALLOW_CREDENTIALS")
-    allow_methods: List[str] = Field(default=["*"], alias="CORS_ALLOW_METHODS")
-    allow_headers: List[str] = Field(default=["*"], alias="CORS_ALLOW_HEADERS")
+    allow_methods: list[str] = Field(default=["*"], alias="CORS_ALLOW_METHODS")
+    allow_headers: list[str] = Field(default=["*"], alias="CORS_ALLOW_HEADERS")
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -157,43 +157,43 @@ class Settings(BaseSettings):
     @property
     def database(self) -> DatabaseSettings:
         if self._database is None:
-            self._database = DatabaseSettings()
+            self._database = DatabaseSettings()  # type: ignore[call-arg]
         return self._database
 
     @property
     def anthropic(self) -> AnthropicSettings:
         if self._anthropic is None:
-            self._anthropic = AnthropicSettings()
+            self._anthropic = AnthropicSettings()  # type: ignore[call-arg]
         return self._anthropic
 
     @property
     def auth(self) -> AuthSettings:
         if self._auth is None:
-            self._auth = AuthSettings()
+            self._auth = AuthSettings()  # type: ignore[call-arg]
         return self._auth
 
     @property
     def storage(self) -> StorageSettings:
         if self._storage is None:
-            self._storage = StorageSettings()
+            self._storage = StorageSettings()  # type: ignore[call-arg]
         return self._storage
 
     @property
     def azure(self) -> AzureSettings:
         if self._azure is None:
-            self._azure = AzureSettings()
+            self._azure = AzureSettings()  # type: ignore[call-arg]
         return self._azure
 
     @property
     def processing(self) -> ProcessingSettings:
         if self._processing is None:
-            self._processing = ProcessingSettings()
+            self._processing = ProcessingSettings()  # type: ignore[call-arg]
         return self._processing
 
     @property
     def cors(self) -> CORSSettings:
         if self._cors is None:
-            self._cors = CORSSettings()
+            self._cors = CORSSettings()  # type: ignore[call-arg]
         return self._cors
 
     # Telemetry
@@ -212,13 +212,13 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    return Settings()  # type: ignore[call-arg]
 
 
-def load_yaml_config(path: str = "config.yaml") -> dict:
+def load_yaml_config(path: str = "config.yaml") -> dict[str, Any]:
     """Load additional YAML configuration."""
     config_path = Path(path)
     if config_path.exists():
         with open(config_path) as f:
-            return yaml.safe_load(f)
+            return yaml.safe_load(f) or {}
     return {}

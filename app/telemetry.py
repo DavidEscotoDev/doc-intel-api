@@ -5,7 +5,7 @@ from opentelemetry import trace, metrics
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader, MetricReader
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -14,7 +14,6 @@ from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 from opentelemetry.trace import Status, StatusCode
 from prometheus_client import Counter, Histogram, Gauge
 from typing import Optional
-import os
 
 
 # Prometheus metrics (always available)
@@ -94,7 +93,7 @@ def setup_telemetry(
 
     # Metrics
     prometheus_reader = PrometheusMetricReader()
-    metric_readers = [prometheus_reader]
+    metric_readers: list[MetricReader] = [prometheus_reader]
 
     if enable_azure_monitor and azure_connection_string:
         from azure.monitor.opentelemetry.exporter import AzureMonitorMetricExporter
