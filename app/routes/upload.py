@@ -19,6 +19,7 @@ from app.schemas.common import PaginatedResponse
 from app.exceptions import ValidationError, to_http_exception
 from app.logging import get_logger
 from app.constants import MimeType, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
+from app.security.validation import validate_filename, validate_file_content
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 logger = get_logger(__name__)
@@ -37,30 +38,12 @@ async def upload_document(
 ) -> DocumentUploadResponse:
     """Upload a document for processing."""
 
-    # Validate file
-    if not file.filename:
-        raise to_http_exception(ValidationError("Filename is required"))
-
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        raise to_http_exception(
-            ValidationError(
-                f"Unsupported file type: {file.content_type}",
-                details={"allowed_types": ALLOWED_MIME_TYPES},
-            )
-        )
-
-    # Read and validate file size
+    # Validate file using security validation
+    validate_filename(file.filename)
+    
+    # Read and validate file content
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE_BYTES:
-        raise to_http_exception(
-            ValidationError(
-                f"File size exceeds maximum of {MAX_FILE_SIZE_BYTES // (1024*1024)}MB",
-                details={"file_size": len(content), "max_size": MAX_FILE_SIZE_BYTES},
-            )
-        )
-
-    if len(content) == 0:
-        raise to_http_exception(ValidationError("File is empty"))
+    validate_file_content(file, content)
 
     # Save to storage
     storage = get_storage_service()

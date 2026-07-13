@@ -2,6 +2,7 @@
 """FastAPI application factory."""
 
 from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,13 +10,15 @@ from app.config import get_settings
 from app.database import init_db, close_db
 from app.logging import setup_logging, get_logger
 from app.telemetry import setup_telemetry
-
+from app.routes import upload, process, query, health, auth
+from app.middleware.logging import RequestLoggingMiddleware
+from app.security.headers import SecurityHeadersMiddleware
 
 logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager."""
     settings = get_settings()
 
@@ -48,12 +51,16 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="Document Intelligence API",
-        description="AI-powered document analysis API",
+        description="AI-powered document analysis API with Claude",
         version="1.0.0",
         docs_url="/docs" if settings.is_development else None,
         redoc_url="/redoc" if settings.is_development else None,
+        openapi_url="/openapi.json" if settings.is_development else None,
         lifespan=lifespan,
     )
+
+    # Security headers (first, so they apply to all responses)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # CORS
     app.add_middleware(
@@ -64,15 +71,29 @@ def create_app() -> FastAPI:
         allow_headers=settings.cors.allow_headers,
     )
 
-    # Include routers (will be added in later tasks)
-    # app.include_router(health_router, prefix="/health")
-    # app.include_router(documents_router, prefix=settings.API_PREFIX)
-    # app.include_router(analysis_router, prefix=settings.API_PREFIX)
-    # app.include_router(auth_router, prefix=settings.API_PREFIX)
+    # Request logging middleware
+    app.add_middleware(RequestLoggingMiddleware)
 
-    @app.get("/health")
-    async def health_check():
-        """Health check endpoint."""
-        return {"status": "healthy", "service": "document-intelligence-api"}
+    # Include routers
+    app.include_router(health.router, prefix="")
+    app.include_router(upload.router, prefix="/api/v1")
+    app.include_router(process.router, prefix="/api/v1")
+    app.include_router(query.router, prefix="/api/v1")
+    app.include_router(auth.router, prefix="/api/v1")
 
     return app
+
+
+app = create_app()
+
+
+if __name__ == "__main__":
+    import uvicorn
+    settings = get_settings()
+    uvicorn.run(
+        "app.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.is_development,
+        workers=settings.workers if not settings.is_development else 1,
+    )
