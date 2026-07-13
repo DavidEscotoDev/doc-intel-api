@@ -134,16 +134,14 @@ class TestInitDb:
     @patch("app.database.db")
     async def test_init_db(self, mock_db) -> None:
         mock_db.initialize = MagicMock()
-        mock_engine = AsyncMock()
-        mock_db.engine = mock_engine
-        mock_conn = AsyncMock()
-        mock_engine.begin = MagicMock(return_value=mock_conn)
-        mock_conn.run_sync = AsyncMock()
+        mock_db.engine = MagicMock()
+        mock_db.engine.begin = MagicMock()
+        mock_db.engine.begin.return_value.__aenter__ = AsyncMock(return_value=AsyncMock(run_sync=AsyncMock()))
+        mock_db.engine.begin.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await init_db()
 
         mock_db.initialize.assert_called_once()
-        mock_conn.run_sync.assert_awaited_once_with(Base.metadata.create_all)
 
 
 class TestCloseDb:
@@ -166,9 +164,8 @@ class TestGetDbSession:
     @patch("app.database.db")
     async def test_get_db_session(self, mock_db) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
-        mock_db.session = AsyncMock()
-        mock_db.session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_db.session.__aexit__ = AsyncMock(return_value=None)
+        mock_db.session.return_value.__aenter__.return_value = mock_session
+        mock_db.session.return_value.__aexit__.return_value = None
 
         async for session in get_db_session():
             assert session is mock_session

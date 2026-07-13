@@ -121,12 +121,12 @@ class TestSettings:
         assert settings.otel_exporter_endpoint is None
 
     def test_is_production(self) -> None:
-        settings = Settings(env="production")
+        settings = Settings(APP_ENV="production")
         assert settings.is_production is True
         assert settings.is_development is False
 
     def test_is_development(self) -> None:
-        settings = Settings(env="development")
+        settings = Settings(APP_ENV="development")
         assert settings.is_development is True
         assert settings.is_production is False
 

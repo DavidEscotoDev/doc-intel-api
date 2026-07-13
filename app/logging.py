@@ -8,20 +8,6 @@ import structlog
 from structlog.types import EventDict, Processor
 
 
-def add_correlation_id(_: Any, __: Any, event_dict: EventDict) -> EventDict:
-    """Add correlation ID from contextvars if available."""
-    try:
-        from contextvars import copy_context, ContextVar
-        ctx = copy_context()
-        correlation_id_var: ContextVar[str | None] = ContextVar("correlation_id", default=None)
-        correlation_id = ctx.get(correlation_id_var)
-        if correlation_id is not None:
-            event_dict["correlation_id"] = correlation_id
-    except Exception:
-        pass
-    return event_dict
-
-
 def add_service_info(_: Any, __: Any, event_dict: EventDict) -> EventDict:
     """Add service metadata to all log entries."""
     event_dict["service"] = "document-intelligence-api"
@@ -42,11 +28,10 @@ def setup_logging(log_level: str = "INFO", json_logs: bool = False) -> None:
 
     shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
-        add_correlation_id,
         add_service_info,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
-        timestamper,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         drop_color_message_key,
