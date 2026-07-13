@@ -1,0 +1,59 @@
+# config.yaml
+app:
+  name: "Document Intelligence API"
+  version: "1.0.0"
+  description: "AI-powered document analysis API"
+
+database:
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+  echo: false
+
+anthropic:
+  model: "claude-3-5-sonnet-20241022"
+  max_tokens: 4096
+  temperature: 0.1
+  timeout: 60
+  max_retries: 3
+  retry_wait: 2
+
+storage:
+  local:
+    path: "/app/data/uploads"
+    max_file_size_mb: 50
+  azure:
+    container: "documents"
+    max_file_size_mb: 50
+
+auth:
+  api_key_prefix: "di_"
+  hash_rounds: 12
+  rate_limit:
+    requests: 10
+    window_seconds: 60
+
+processing:
+  allowed_mime_types:
+    - "application/pdf"
+    - "text/plain"
+    - "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    - "image/png"
+    - "image/jpeg"
+    - "image/tiff"
+  ocr_language: "eng"
+  max_text_length: 100000
+
+cors:
+  origins: ["*"]
+  allow_credentials: true
+  allow_methods: ["*"]
+  allow_headers: ["*"]
+
+telemetry:
+  service_name: "document-intelligence-api"
+  sample_rate: 1.0
+  exporters:
+    - "prometheus"
+    - "azure_monitor"

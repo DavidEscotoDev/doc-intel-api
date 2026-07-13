@@ -1,0 +1,89 @@
+# pyproject.toml
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "document-intelligence-api"
+version = "1.0.0"
+description = "Production-grade AI Document Intelligence API"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.109.0",
+    "uvicorn[standard]==0.27.0",
+    "pydantic==2.5.3",
+    "pydantic-settings==2.1.0",
+    "pydantic-extra-types==2.4.0",
+    "sqlalchemy==2.0.25",
+    "asyncpg==0.29.0",
+    "alembic==1.13.1",
+    "anthropic==0.18.1",
+    "python-multipart==0.0.6",
+    "python-jose[cryptography]==3.3.0",
+    "passlib[bcrypt]==1.7.4",
+    "python-dotenv==1.0.0",
+    "pyyaml==6.0.1",
+    "structlog==24.1.0",
+    "opentelemetry-api==1.22.0",
+    "opentelemetry-sdk==1.22.0",
+    "opentelemetry-instrumentation-fastapi==0.43b0",
+    "opentelemetry-instrumentation-sqlalchemy==0.43b0",
+    "opentelemetry-instrumentation-httpx==0.43b0",
+    "opentelemetry-exporter-prometheus==0.43b0",
+    "prometheus-client==0.19.0",
+    "azure-identity==1.13.0",
+    "azure-keyvault-secrets==4.7.0",
+    "azure-storage-blob==12.19.0",
+    "azure-monitor-opentelemetry==1.1.0",
+    "pymupdf==1.23.7",
+    "python-docx==1.1.0",
+    "pillow==10.1.0",
+    "pytesseract==0.3.10",
+    "tenacity==8.2.3",
+    "email-validator==2.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==7.4.4",
+    "pytest-asyncio==0.23.3",
+    "pytest-cov==4.1.0",
+    "pytest-mock==3.12.0",
+    "httpx==0.26.0",
+    "faker==22.1.0",
+    "factory-boy==3.3.0",
+    "mypy==1.7.1",
+    "ruff==0.1.15",
+    "pre-commit==3.6.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "T20", "PI", "PT"]
+ignore = ["S101", "T201"]
+per-file-ignores = ["tests/*: S101"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --cov=app --cov-report=term-missing --cov-fail-under=85"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["tests/*", "app/main.py"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
