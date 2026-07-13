@@ -14,7 +14,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy import Uuid
 
 from app.database import Base
 
@@ -24,13 +24,13 @@ class Analysis(Base):
 
     __tablename__ = "analyses"
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[uuid4] = mapped_column(
+        Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    document_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    document_id: Mapped[uuid4] = mapped_column(
+        Uuid(as_uuid=True),
         ForeignKey("documents.id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
@@ -38,10 +38,10 @@ class Analysis(Base):
 
     # Analysis results
     summary: Mapped[str] = mapped_column(Text, nullable=False)
-    key_points: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
-    entities: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
+    key_points: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    entities: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     sentiment: Mapped[str] = mapped_column(String(20), nullable=False)
-    topics: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
+    topics: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
 
     # Metadata
     tokens_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

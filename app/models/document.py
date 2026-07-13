@@ -14,7 +14,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Uuid
 
 from app.database import Base
 from app.constants import DocumentStatus
@@ -25,8 +25,8 @@ class Document(Base):
 
     __tablename__ = "documents"
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[uuid4] = mapped_column(
+        Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
@@ -42,8 +42,8 @@ class Document(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Foreign keys
-    api_key_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    api_key_id: Mapped[uuid4] = mapped_column(
+        Uuid(as_uuid=True),
         ForeignKey("api_keys.id", ondelete="CASCADE"),
         nullable=False,
     )

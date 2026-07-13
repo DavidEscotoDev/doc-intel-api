@@ -111,11 +111,8 @@ def mock_anthropic_client() -> MagicMock:
 @pytest.fixture
 async def test_api_key(db_session: AsyncSession) -> APIKey:
     """Create a test API key."""
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-    key = "di_test_abcdefghijklmnopqrstuvwxyz123456"
-    key_hash = pwd_context.hash(key)
+    # Use a pre-hashed key to avoid bcrypt issues in tests
+    key_hash = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.PZvO.S"  # "testkey123"
 
     api_key = APIKey(
         key_hash=key_hash,

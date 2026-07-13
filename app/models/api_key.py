@@ -13,7 +13,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Uuid
 
 from app.database import Base
 
@@ -23,8 +23,8 @@ class APIKey(Base):
 
     __tablename__ = "api_keys"
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[uuid4] = mapped_column(
+        Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
