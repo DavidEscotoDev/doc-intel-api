@@ -5,17 +5,15 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.database import init_db, close_db
 from app.logging import setup_logging, get_logger
-from app.telemetry import setup_telemetry
 from app.routes import upload, process, query, health, auth
 from app.middleware.logging import RequestLoggingMiddleware
 from app.exceptions import AppException, to_http_exception
 from app.middleware.rate_limit import init_rate_limiter, close_rate_limiter
-from fastapi.responses import JSONResponse
-from app.security.headers import SecurityHeadersMiddleware
 
 logger = get_logger(__name__)
 
@@ -28,14 +26,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Setup logging
     setup_logging(log_level=settings.log_level, json_logs=settings.is_production)
     logger.info("application_starting", env=settings.env)
-
-    # Setup telemetry
-    setup_telemetry(
-        service_name=settings.otel_service_name,
-        enable_azure_monitor=bool(settings.azure.monitor_connection_string),
-        azure_connection_string=settings.azure.monitor_connection_string,
-    )
-    logger.info("telemetry_initialized")
 
     # Initialize database
     await init_db()
@@ -76,16 +66,13 @@ def create_app() -> FastAPI:
             content=http_exc.detail,
         )
 
-    # Security headers (first, so they apply to all responses)
-    app.add_middleware(SecurityHeadersMiddleware)
-
     # CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors.origins,
-        allow_credentials=settings.cors.allow_credentials,
-        allow_methods=settings.cors.allow_methods,
-        allow_headers=settings.cors.allow_headers,
+        allow_origins=settings.cors_origins,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=settings.cors_allow_methods,
+        allow_headers=settings.cors_allow_headers,
     )
 
     # Request logging middleware

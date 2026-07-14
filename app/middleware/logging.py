@@ -7,8 +7,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from app.logging import get_logger, setup_logging
-from app.telemetry import http_requests_total, http_request_duration_seconds
+from app.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -48,17 +47,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
             duration = time.time() - start_time
 
-            # Record metrics
-            http_requests_total.labels(
-                method=request.method,
-                endpoint=request.url.path,
-                status=response.status_code,
-            ).inc()
-            http_request_duration_seconds.labels(
-                method=request.method,
-                endpoint=request.url.path,
-            ).observe(duration)
-
             # Add correlation ID to response headers
             response.headers["X-Correlation-ID"] = correlation_id
 
@@ -90,13 +78,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 error=str(e),
                 duration_ms=int(duration * 1000),
             )
-
-            # Record error metrics
-            http_requests_total.labels(
-                method=request.method,
-                endpoint=request.url.path,
-                status=500,
-            ).inc()
 
             raise
         finally:

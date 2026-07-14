@@ -6,13 +6,12 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.database import db, init_db, close_db
-from app.models.document import Document, DocumentStatus
-from app.models.analysis import Analysis
+from app.database import _get_session_factory, init_db, close_db
+from app.models.document import Document
 from app.services.storage import get_storage_service
 from app.services.extractor import get_text_extractor
 from app.services.llm import get_llm_service
-from app.exceptions import ProcessingError
+from app.exceptions import ValidationError
 from app.logging import get_logger
 
 logger = get_logger(__name__)
@@ -27,7 +26,8 @@ async def process_document_task(document_id: str) -> None:
     # Initialize DB for background task
     await init_db()
 
-    async with db.session() as session:
+    session_factory = _get_session_factory()
+    async with session_factory() as session:
         try:
             # Get document
             result = await session.execute(
@@ -39,50 +39,46 @@ async def process_document_task(document_id: str) -> None:
                 logger.error("process_document_not_found", document_id=document_id)
                 return
 
-            if document.status == DocumentStatus.PROCESSING:
+            if document.status == "processing":
                 logger.warning("process_document_already_processing", document_id=document_id)
                 return
 
             # Update status to processing
-            document.status = DocumentStatus.PROCESSING
+            document.status = "processing"
             await session.commit()
 
             logger.info("process_document_started", document_id=document_id)
 
             # Get file from storage
             storage = get_storage_service()
-            file_path = await storage.get_file_path(document.file_path)
+            file_path = await storage.get_path(document.file_path)
 
             # Extract text
             extractor = get_text_extractor()
             text = extractor.extract(file_path, document.mime_type)
 
             if not text.strip():
-                raise ProcessingError("No text content extracted from document")
+                raise ValidationError("No text content extracted from document")
 
             # Analyze with LLM
             llm = get_llm_service()
             result = await llm.analyze(text)
 
-            # Save analysis
+            # Save analysis to document
             processing_time_ms = int((time.time() - start_time) * 1000)
 
-            analysis = Analysis(
-                document_id=document.id,
-                summary=result.summary,
-                key_points=result.key_points,
-                entities=result.entities,
-                sentiment=result.sentiment,
-                topics=result.topics,
-                tokens_used=result.tokens_used,
-                model_version=llm.model,
-                processing_time_ms=processing_time_ms,
-                raw_response={"content": result.raw},
-            )
-            session.add(analysis)
+            document.summary = result.summary
+            document.key_points = result.key_points
+            document.entities = result.entities
+            document.sentiment = result.sentiment
+            document.topics = result.topics
+            document.tokens_used = result.tokens_used
+            document.model_version = llm.model
+            document.processing_time_ms = processing_time_ms
+            document.raw_response = {"content": result.raw}
 
             # Mark completed
-            document.status = DocumentStatus.COMPLETED
+            document.status = "completed"
             document.processed_at = datetime.now(timezone.utc)
 
             await session.commit()
@@ -94,7 +90,7 @@ async def process_document_task(document_id: str) -> None:
                 tokens_used=result.tokens_used,
             )
 
-        except ProcessingError as e:
+        except ValidationError as e:
             await _mark_failed(session, document, str(e))
             logger.error("process_document_failed", document_id=document_id, error=str(e))
         except Exception as e:
@@ -107,6 +103,6 @@ async def process_document_task(document_id: str) -> None:
 async def _mark_failed(session: AsyncSession, document: Document | None, error: str) -> None:
     """Mark document as failed with error message."""
     if document:
-        document.status = DocumentStatus.FAILED
+        document.status = "failed"
         document.error_message = error
         await session.commit()

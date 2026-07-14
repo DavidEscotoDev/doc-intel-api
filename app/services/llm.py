@@ -7,7 +7,7 @@ import anthropic
 
 from app.config import get_settings
 from app.logging import get_logger
-from app.exceptions import LLMError
+from app.exceptions import ValidationError
 
 logger = get_logger(__name__)
 
@@ -34,11 +34,11 @@ class LLMService:
     def __init__(self) -> None:
         self.s = get_settings()
         self.client = anthropic.AsyncAnthropic(
-            api_key=self.s.anthropic.api_key,
-            timeout=self.s.anthropic.timeout,
-            max_retries=self.s.anthropic.max_retries,
+            api_key=self.s.anthropic_api_key,
+            timeout=self.s.anthropic_timeout,
+            max_retries=self.s.anthropic_max_retries,
         )
-        self.model = self.s.anthropic.model
+        self.model = self.s.anthropic_model
 
     async def analyze(self, text: str) -> AnalysisResult:
         logger.info("llm_analyze_start", len=len(text))
@@ -48,15 +48,15 @@ class LLMService:
             try:
                 resp = await self.client.messages.create(
                     model=self.model,
-                    max_tokens=self.s.anthropic.max_tokens,
-                    temperature=self.s.anthropic.temperature,
+                    max_tokens=self.s.anthropic_max_tokens,
+                    temperature=self.s.anthropic_temperature,
                     system=self.SYS_PROMPT,
                     messages=[{"role": "user", "content": f"Analyze:\n\n{text}"}],
                 )
                 break
             except (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.APIStatusError) as e:
                 if attempt == 2:
-                    raise LLMError(f"LLM failed after retries: {e}") from e
+                    raise ValidationError(f"LLM failed after retries: {e}") from e
                 await asyncio.sleep(2 ** attempt)
 
         raw = resp.content[0].text
@@ -82,11 +82,11 @@ class LLMService:
                     raw = raw.split("```")[1].split("```")[0]
                 data = json.loads(raw)
         except json.JSONDecodeError as e:
-            raise LLMError(f"Invalid JSON response: {e}") from e
+            raise ValidationError(f"Invalid JSON response: {e}") from e
 
         for k in ["summary", "key_points", "entities", "sentiment", "topics"]:
             if k not in data:
-                raise LLMError(f"Missing field: {k}")
+                raise ValidationError(f"Missing field: {k}")
 
         # Normalize sentiment
         if data["sentiment"].lower() not in {"positive", "negative", "neutral"}:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.config import get_settings
 from app.logging import get_logger
-from app.exceptions import StorageError
+from app.exceptions import ValidationError, NotFoundError
 
 logger = get_logger(__name__)
 
@@ -26,9 +26,9 @@ class StorageService:
         size = file.tell()
         file.seek(0)
 
-        max_size = self.settings.storage.max_file_size_mb * 1024 * 1024
+        max_size = self.settings.max_file_size_mb * 1024 * 1024
         if size > max_size:
-            raise StorageError(f"File size {size} exceeds max {max_size}")
+            raise ValidationError(f"File size {size} exceeds max {max_size}")
 
         with open(path, "wb") as f:
             shutil.copyfileobj(file, f)
@@ -39,7 +39,7 @@ class StorageService:
     async def get_path(self, key: str) -> str:
         path = self.base_path / key
         if not path.exists():
-            raise StorageError(f"File not found: {key}")
+            raise NotFoundError("File", key)
         return str(path)
 
     async def delete(self, key: str) -> bool:
@@ -60,5 +60,5 @@ def get_storage_service() -> StorageService:
     global _storage
     if _storage is None:
         settings = get_settings()
-        _storage = StorageService(settings.storage.local_path)
+        _storage = StorageService(settings.local_storage_path)
     return _storage

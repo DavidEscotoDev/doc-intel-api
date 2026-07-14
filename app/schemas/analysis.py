@@ -1,11 +1,13 @@
-"""Analysis-related schemas."""
+"""Analysis-related schemas (now from Document model)."""
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from uuid import UUID
 
-class AnalysisResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
+class AnalysisDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     document_id: UUID
     summary: str
@@ -17,17 +19,4 @@ class AnalysisResponse(BaseModel):
     model_version: str
     processing_time_ms: int
     created_at: datetime
-
-class AnalysisRequest(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    document_id: UUID
-    callback_url: Optional[str] = None
-    @field_validator("callback_url")
-    @classmethod
-    def validate_callback_url(cls, v: Optional[str]) -> Optional[str]:
-        if v and not v.startswith(("http://", "https://")):
-            raise ValueError("Callback URL must be a valid HTTP/HTTPS URL")
-        return v
-
-class AnalysisDetailResponse(AnalysisResponse):
     raw_response: Optional[dict] = None

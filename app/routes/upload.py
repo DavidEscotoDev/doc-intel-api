@@ -9,7 +9,7 @@ from app.database import get_db_session
 from app.middleware.auth import verify_api_key, get_current_api_key
 from app.middleware.rate_limit import rate_limit_dependency
 from app.services.storage import get_storage_service
-from app.models.document import Document, DocumentStatus
+from app.models.document import Document
 from app.schemas.document import (
     DocumentUploadResponse,
     DocumentListResponse,
@@ -18,7 +18,7 @@ from app.schemas.document import (
 from app.schemas.common import PaginatedResponse
 from app.exceptions import ValidationError, to_http_exception
 from app.logging import get_logger
-from app.constants import MimeType, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
+from app.constants import ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
 from app.security.validation import validate_filename, validate_file_content
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
@@ -59,7 +59,7 @@ async def upload_document(
         file_path=storage_key,
         mime_type=file.content_type,
         file_size=file_size,
-        status=DocumentStatus.UPLOADED,
+        status="uploaded",
         api_key_id=api_key.id,
     )
 
@@ -105,13 +105,7 @@ async def list_documents(
     query = select(Document).where(Document.api_key_id == api_key.id)
 
     if status_filter:
-        try:
-            status_enum = DocumentStatus(status_filter)
-            query = query.where(Document.status == status_enum)
-        except ValueError:
-            raise to_http_exception(
-                ValidationError(f"Invalid status: {status_filter}")
-            )
+        query = query.where(Document.status == status_filter)
 
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())

@@ -21,8 +21,6 @@ from app.database import Base, get_db_session
 from app.main import create_app
 from app.models.api_key import APIKey
 from app.models.document import Document
-from app.models.analysis import Analysis
-from app.constants import DocumentStatus
 
 
 # Test settings
@@ -124,7 +122,6 @@ def mock_anthropic_client() -> MagicMock:
 @pytest.fixture
 async def test_api_key(db_session: AsyncSession) -> APIKey:
     """Create a test API key."""
-    # Generate a simple key that bcrypt can handle
     from passlib.context import CryptContext
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     plain_key = "di_testkey123"
@@ -145,7 +142,6 @@ async def test_api_key(db_session: AsyncSession) -> APIKey:
 @pytest.fixture
 def auth_headers(test_api_key: APIKey) -> dict[str, str]:
     """Authorization headers for test API key."""
-    # The plain key used to generate the hash
     return {"Authorization": "Bearer di_testkey123"}
 
 
@@ -157,7 +153,7 @@ async def test_document(db_session: AsyncSession, test_api_key: APIKey) -> Docum
         file_path="/tmp/test.pdf",
         mime_type="application/pdf",
         file_size=1024,
-        status=DocumentStatus.UPLOADED,
+        status="uploaded",
         api_key_id=test_api_key.id,
     )
     db_session.add(doc)
@@ -167,14 +163,15 @@ async def test_document(db_session: AsyncSession, test_api_key: APIKey) -> Docum
 
 
 @pytest.fixture
-async def test_analysis(db_session: AsyncSession, test_document: Document) -> Analysis:
-    """Create a test analysis."""
-    test_document.status = DocumentStatus.COMPLETED
-    await db_session.commit()
-    await db_session.refresh(test_document)
-    
-    analysis = Analysis(
-        document_id=test_document.id,
+async def test_completed_document(db_session: AsyncSession, test_api_key: APIKey) -> Document:
+    """Create a test completed document with analysis."""
+    doc = Document(
+        filename="test.pdf",
+        file_path="/tmp/test.pdf",
+        mime_type="application/pdf",
+        file_size=1024,
+        status="completed",
+        api_key_id=test_api_key.id,
         summary="Test summary",
         key_points=["Point 1", "Point 2"],
         entities=["Entity 1"],
@@ -182,8 +179,10 @@ async def test_analysis(db_session: AsyncSession, test_document: Document) -> An
         topics=["Topic 1"],
         tokens_used=100,
         model_version="claude-3-5-sonnet-20241022",
+        processing_time_ms=5000,
+        raw_response={"content": "raw"},
     )
-    db_session.add(analysis)
+    db_session.add(doc)
     await db_session.commit()
-    await db_session.refresh(analysis)
-    return analysis
+    await db_session.refresh(doc)
+    return doc

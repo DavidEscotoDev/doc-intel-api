@@ -11,18 +11,17 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
-    Enum as SQLEnum,
     func,
+    CheckConstraint,
+    JSON,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Uuid
 
 from app.database import Base
-from app.constants import DocumentStatus
 
 if TYPE_CHECKING:
     from app.models.api_key import APIKey
-    from app.models.analysis import Analysis
 
 
 class Document(Base):
@@ -39,12 +38,23 @@ class Document(Base):
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[DocumentStatus] = mapped_column(
-        SQLEnum(DocumentStatus),
-        default=DocumentStatus.UPLOADED,
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="uploaded",
         nullable=False,
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Analysis results (merged from Analysis model)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    key_points: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    entities: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    sentiment: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    topics: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    tokens_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    model_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    processing_time_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    raw_response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Foreign keys
     api_key_id: Mapped[UUID] = mapped_column(
@@ -72,16 +82,12 @@ class Document(Base):
 
     # Relationships
     api_key: Mapped["APIKey"] = relationship(back_populates="documents")
-    analysis: Mapped["Analysis | None"] = relationship(
-        back_populates="document",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
 
     # Indexes
     __table_args__ = (
         Index("ix_documents_api_key_id_created_at", "api_key_id", "created_at"),
         Index("ix_documents_status", "status"),
+        CheckConstraint("status IN ('uploaded', 'processing', 'completed', 'failed')", name="ck_document_status"),
     )
 
     def __repr__(self) -> str:

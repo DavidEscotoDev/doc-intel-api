@@ -7,8 +7,8 @@ from pathlib import Path
 
 from app.config import get_settings
 from app.logging import get_logger
-from app.exceptions import ProcessingError
-from app.constants import MimeType, MAX_TEXT_LENGTH
+from app.exceptions import ValidationError
+from app.constants import PDF, TXT, DOCX, PNG, JPEG, TIFF, MAX_TEXT_LENGTH
 
 logger = get_logger(__name__)
 
@@ -22,26 +22,26 @@ class TextExtractor:
         logger.info("extracting", path=file_path, mime=mime_type)
 
         try:
-            if mime_type == MimeType.PDF:
+            if mime_type == PDF:
                 text = self._pdf(file_path)
-            elif mime_type == MimeType.TXT:
+            elif mime_type == TXT:
                 text = Path(file_path).read_text(encoding="utf-8", errors="replace")
-            elif mime_type == MimeType.DOCX:
+            elif mime_type == DOCX:
                 text = self._docx(file_path)
-            elif mime_type in (MimeType.PNG, MimeType.JPEG, MimeType.TIFF):
+            elif mime_type in (PNG, JPEG, TIFF):
                 text = self._image(file_path)
             else:
-                raise ProcessingError(f"Unsupported MIME type: {mime_type}")
+                raise ValidationError(f"Unsupported MIME type: {mime_type}")
 
             if len(text) > self.max_text_length:
                 text = text[:self.max_text_length] + "\n[TRUNCATED]"
             return text.strip()
 
-        except ProcessingError:
+        except ValidationError:
             raise
         except Exception as e:
             logger.exception("extract_failed", path=file_path, error=str(e))
-            raise ProcessingError(f"Extraction failed: {e}") from e
+            raise ValidationError(f"Extraction failed: {e}") from e
 
     def _pdf(self, path: str) -> str:
         parts = []
@@ -65,9 +65,9 @@ class TextExtractor:
             with Image.open(path) as img:
                 if img.mode != "RGB":
                     img = img.convert("RGB")
-                return pytesseract.image_to_string(img, lang=self.settings.processing.ocr_language)
+                return pytesseract.image_to_string(img, lang=self.settings.ocr_language)
         except Exception as e:
-            raise ProcessingError(f"OCR failed: {e}") from e
+            raise ValidationError(f"OCR failed: {e}") from e
 
 
 _extractor: TextExtractor | None = None

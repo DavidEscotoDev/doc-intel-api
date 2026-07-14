@@ -35,28 +35,6 @@ class ValidationError(AppException):
         )
 
 
-class AuthenticationError(AppException):
-    """Authentication failed."""
-
-    def __init__(self, message: str = "Invalid or missing API key") -> None:
-        super().__init__(
-            message,
-            code="AUTHENTICATION_ERROR",
-            status_code=status.HTTP_401_UNAUTHORIZED,
-        )
-
-
-class AuthorizationError(AppException):
-    """Authorization failed."""
-
-    def __init__(self, message: str = "Insufficient permissions") -> None:
-        super().__init__(
-            message,
-            code="AUTHORIZATION_ERROR",
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
-
-
 class NotFoundError(AppException):
     """Resource not found."""
 
@@ -78,42 +56,6 @@ class RateLimitError(AppException):
             code="RATE_LIMIT_EXCEEDED",
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             details={"retry_after": retry_after},
-        )
-
-
-class StorageError(AppException):
-    """File storage operation failed."""
-
-    def __init__(self, message: str, details: Optional[dict[str, Any]] = None) -> None:
-        super().__init__(
-            message,
-            code="STORAGE_ERROR",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details=details,
-        )
-
-
-class ProcessingError(AppException):
-    """Document processing failed."""
-
-    def __init__(self, message: str, details: Optional[dict[str, Any]] = None) -> None:
-        super().__init__(
-            message,
-            code="PROCESSING_ERROR",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details=details,
-        )
-
-
-class LLMError(AppException):
-    """LLM API call failed."""
-
-    def __init__(self, message: str, details: Optional[dict[str, Any]] = None) -> None:
-        super().__init__(
-            message,
-            code="LLM_ERROR",
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            details=details,
         )
 
 

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.database import get_db_session
 from app.middleware.auth import verify_api_key, get_current_api_key
 from app.middleware.rate_limit import rate_limit_dependency
-from app.models.document import Document, DocumentStatus
+from app.models.document import Document
 from app.schemas.document import DocumentProcessRequest, DocumentStatusResponse
 from app.tasks.processor import process_document_task
 from app.exceptions import NotFoundError, ValidationError
@@ -44,10 +44,10 @@ async def analyze_document(
     if not document:
         raise NotFoundError("Document", str(request.document_id))
 
-    if document.status == DocumentStatus.PROCESSING:
+    if document.status == "processing":
         raise ValidationError("Document is already being processed")
 
-    if document.status == DocumentStatus.COMPLETED:
+    if document.status == "completed":
         raise ValidationError("Document has already been processed. Use /query to retrieve results.")
 
     # Queue background task
@@ -61,7 +61,7 @@ async def analyze_document(
 
     return DocumentStatusResponse(
         id=document.id,
-        status=DocumentStatus.PROCESSING,
+        status="processing",
         progress=0,
     )
 
@@ -91,13 +91,13 @@ async def get_processing_status(
 
     # Calculate progress based on status
     progress = 0
-    if document.status == DocumentStatus.UPLOADED:
+    if document.status == "uploaded":
         progress = 0
-    elif document.status == DocumentStatus.PROCESSING:
+    elif document.status == "processing":
         progress = 50
-    elif document.status == DocumentStatus.COMPLETED:
+    elif document.status == "completed":
         progress = 100
-    elif document.status == DocumentStatus.FAILED:
+    elif document.status == "failed":
         progress = 100
 
     return DocumentStatusResponse(

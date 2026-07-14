@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 from app.config import get_settings
 from app.database import get_db_session
 from app.models.api_key import APIKey
-from app.exceptions import AuthenticationError, AuthorizationError, to_http_exception
+from app.exceptions import ValidationError, to_http_exception
 from app.logging import get_logger
 
 logger = get_logger(__name__)
@@ -28,20 +28,20 @@ async def verify_api_key(
 
     if not authorization:
         logger.warning("auth_missing_header", client=request.client.host if request.client else "unknown")
-        raise to_http_exception(AuthenticationError())
+        raise to_http_exception(ValidationError("Invalid or missing API key", details={"code": "AUTHENTICATION_ERROR"}))
 
     # Expect "Bearer <key>"
     parts = authorization.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":
         logger.warning("auth_invalid_format", client=request.client.host if request.client else "unknown")
-        raise to_http_exception(AuthenticationError("Invalid authorization format. Use: Bearer <api_key>"))
+        raise to_http_exception(ValidationError("Invalid authorization format. Use: Bearer <api_key>", details={"code": "AUTHENTICATION_ERROR"}))
 
     api_key = parts[1]
 
     # Validate prefix
-    if not api_key.startswith(settings.auth.api_key_prefix):
+    if not api_key.startswith(settings.api_key_prefix):
         logger.warning("auth_invalid_prefix", client=request.client.host if request.client else "unknown")
-        raise to_http_exception(AuthenticationError("Invalid API key format"))
+        raise to_http_exception(ValidationError("Invalid API key format", details={"code": "AUTHENTICATION_ERROR"}))
 
     # Look up all active keys and verify hash
     result = await db.execute(
@@ -57,12 +57,12 @@ async def verify_api_key(
 
     if not matched_key:
         logger.warning("auth_key_not_found", client=request.client.host if request.client else "unknown")
-        raise to_http_exception(AuthenticationError())
+        raise to_http_exception(ValidationError("Invalid or missing API key", details={"code": "AUTHENTICATION_ERROR"}))
 
     # Check expiration
     if matched_key.expires_at and matched_key.expires_at < datetime.now(timezone.utc):
         logger.warning("auth_key_expired", key_id=str(matched_key.id))
-        raise to_http_exception(AuthenticationError("API key has expired"))
+        raise to_http_exception(ValidationError("API key has expired", details={"code": "AUTHENTICATION_ERROR"}))
 
     # Update last used
     matched_key.last_used_at = datetime.now(timezone.utc)

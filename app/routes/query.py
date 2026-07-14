@@ -5,15 +5,13 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
 
 from app.database import get_db_session
 from app.middleware.auth import verify_api_key, get_current_api_key
 from app.middleware.rate_limit import rate_limit_dependency
-from app.models.document import Document, DocumentStatus
-from app.models.analysis import Analysis
+from app.models.document import Document
 from app.schemas.document import DocumentListResponse, DocumentListItem
-from app.schemas.analysis import AnalysisResponse, AnalysisDetailResponse
+from app.schemas.analysis import AnalysisDetailResponse
 from app.schemas.common import PaginatedResponse
 from app.exceptions import NotFoundError, ValidationError
 from app.logging import get_logger
@@ -39,19 +37,14 @@ async def query_documents(
     query = select(Document).where(Document.api_key_id == api_key.id)
 
     if status:
-        try:
-            status_enum = DocumentStatus(status)
-            query = query.where(Document.status == status_enum)
-        except ValueError:
-            raise ValidationError(f"Invalid status: {status}")
+        query = query.where(Document.status == status)
 
     # Total count
     from sqlalchemy import func
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
 
-    # Paginated results with analysis loaded
-    query = query.options(selectinload(Document.analysis))
+    # Paginated results (analysis is now on Document)
     query = query.order_by(Document.created_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
 
@@ -107,34 +100,26 @@ async def get_document_analysis(
     if not document:
         raise NotFoundError("Document", str(document_id))
 
-    if document.status != DocumentStatus.COMPLETED:
+    if document.status != "completed":
         raise NotFoundError("Analysis not available - document not processed", str(document_id))
 
-    # Get analysis
-    analysis_result = await db.execute(
-        select(Analysis).where(Analysis.document_id == document_id)
-    )
-    analysis = analysis_result.scalar_one_or_none()
-
-    if not analysis:
-        raise NotFoundError("Analysis", str(document_id))
-
+    # Build response from document fields
     response = AnalysisDetailResponse(
-        id=analysis.id,
-        document_id=analysis.document_id,
-        summary=analysis.summary,
-        key_points=analysis.key_points,
-        entities=analysis.entities,
-        sentiment=analysis.sentiment,
-        topics=analysis.topics,
-        tokens_used=analysis.tokens_used,
-        model_version=analysis.model_version,
-        processing_time_ms=analysis.processing_time_ms,
-        created_at=analysis.created_at,
+        id=document.id,
+        document_id=document.id,
+        summary=document.summary,
+        key_points=document.key_points or [],
+        entities=document.entities or [],
+        sentiment=document.sentiment,
+        topics=document.topics or [],
+        tokens_used=document.tokens_used,
+        model_version=document.model_version,
+        processing_time_ms=document.processing_time_ms,
+        created_at=document.created_at,
     )
 
     if include_raw:
-        response.raw_response = analysis.raw_response
+        response.raw_response = document.raw_response
 
     logger.info("analysis_retrieved", document_id=str(document_id), api_key_id=str(api_key.id))
 
@@ -152,26 +137,22 @@ async def get_stats(
 ) -> dict:
     """Get usage statistics for the API key."""
 
-    from app.models.document import DocumentStatus
-
-    # Document counts by status
+    statuses = ["uploaded", "processing", "completed", "failed"]
     status_counts = {}
-    for status in DocumentStatus:
+    for status in statuses:
         count = await db.scalar(
             select(func.count(Document.id)).where(
                 Document.api_key_id == api_key.id,
                 Document.status == status,
             )
         )
-        status_counts[status.value] = count
+        status_counts[status] = count
 
     total_docs = sum(status_counts.values())
 
     # Total tokens used
-    from app.models.analysis import Analysis
     total_tokens = await db.scalar(
-        select(func.sum(Analysis.tokens_used))
-        .join(Document)
+        select(func.sum(Document.tokens_used))
         .where(Document.api_key_id == api_key.id)
     ) or 0
 
