@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     tesseract-ocr \
+    tesseract-ocr-eng \
     libtesseract-dev \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
@@ -28,6 +29,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     tesseract-ocr \
+    tesseract-ocr-eng \
     libtesseract-dev \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
@@ -53,9 +55,9 @@ ENV PATH=/home/appuser/.local/bin:$PATH
 # Expose port
 EXPOSE 8000
 
-# Health check
+# Health check - use urllib (stdlib) instead of httpx
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/health/live', timeout=5)"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=5)"
 
 # Run application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
