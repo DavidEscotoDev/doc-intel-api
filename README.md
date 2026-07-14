@@ -2,7 +2,6 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/DavidEscotoDev/doc-intel-api)
 [![CI](https://github.com/DavidEscotoDev/doc-intel-api/actions/workflows/ci.yml/badge.svg)](https://github.com/DavidEscotoDev/doc-intel-api/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/DavidEscotoDev/coverage-badge/raw/main/doc-intel-api.json)](https://github.com/DavidEscotoDev/doc-intel-api/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
