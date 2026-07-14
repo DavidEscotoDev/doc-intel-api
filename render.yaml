@@ -13,7 +13,6 @@ services:
         fromDatabase:
           name: doc-intel-db
           property: connectionString
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
 databases:
   - name: doc-intel-db
