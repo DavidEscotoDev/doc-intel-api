@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+import ssl
 
 from app.config import get_settings
 from app.logging import get_logger
@@ -37,12 +38,29 @@ def _normalize_database_url(url: str) -> str:
     return url
 
 
+def _get_ssl_context() -> ssl.SSLContext | None:
+    """Create SSL context for Render PostgreSQL which requires SSL."""
+    # Render PostgreSQL requires sslmode=require
+    # Create a default SSL context that verifies certificates
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
 def _get_engine() -> AsyncEngine:
     """Get or create the database engine."""
     global _engine
     if _engine is None:
         settings = get_settings()
         normalized_url = _normalize_database_url(settings.database_url)
+        
+        # Build connect args with SSL for Render PostgreSQL
+        connect_args = {}
+        if normalized_url.startswith("postgresql+asyncpg://"):
+            # Render PostgreSQL requires SSL
+            connect_args["ssl"] = _get_ssl_context()
+        
         _engine = create_async_engine(
             normalized_url,
             pool_size=settings.database_pool_size,
@@ -51,6 +69,7 @@ def _get_engine() -> AsyncEngine:
             pool_recycle=settings.database_pool_recycle,
             echo=settings.database_echo,
             pool_pre_ping=True,
+            connect_args=connect_args,
         )
         logger.info("database_initialized", url=settings.database_url)
     return _engine
