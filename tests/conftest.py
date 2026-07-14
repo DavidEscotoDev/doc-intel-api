@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.config import Settings, get_settings
+import app.middleware.rate_limit as rate_limit_module
+from app.middleware.rate_limit import init_rate_limiter, reset_rate_limiter
 from app.database import Base, get_db_session
 from app.main import create_app
 from app.models.api_key import APIKey
@@ -27,7 +29,7 @@ from app.constants import DocumentStatus
 os.environ["APP_ENV"] = "test"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["ANTHROPIC_API_KEY"] = "test-key"
-os.environ["API_KEY_PREFIX"] = "di_test_"
+os.environ["API_KEY_PREFIX"] = "di_"
 
 
 @pytest.fixture(scope="session")
@@ -79,12 +81,22 @@ def override_get_db(db_session: AsyncSession):
     return _override_get_db
 
 
-@pytest.fixture(scope="function")
-def app(override_get_db):
+@pytest_asyncio.fixture(scope="function")
+async def app(override_get_db):
     """Create FastAPI test app."""
     app = create_app()
     app.dependency_overrides[get_db_session] = override_get_db
+    # Reset and initialize rate limiter for tests
+    await reset_rate_limiter()
+    await init_rate_limiter()
     return app
+
+
+@pytest.fixture(autouse=True)
+async def _reset_rate_limiter(app):
+    """Automatically reset rate limiter before each test for isolation."""
+    await reset_rate_limiter()
+    await init_rate_limiter()
 
 
 @pytest.fixture(scope="function")
@@ -112,8 +124,11 @@ def mock_anthropic_client() -> MagicMock:
 @pytest.fixture
 async def test_api_key(db_session: AsyncSession) -> APIKey:
     """Create a test API key."""
-    # Use a pre-hashed key to avoid bcrypt issues in tests
-    key_hash = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.PZvO.S"  # "testkey123"
+    # Generate a simple key that bcrypt can handle
+    from passlib.context import CryptContext
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    plain_key = "di_testkey123"
+    key_hash = pwd_context.hash(plain_key)
 
     api_key = APIKey(
         key_hash=key_hash,
@@ -130,8 +145,8 @@ async def test_api_key(db_session: AsyncSession) -> APIKey:
 @pytest.fixture
 def auth_headers(test_api_key: APIKey) -> dict[str, str]:
     """Authorization headers for test API key."""
-    # Note: In tests we use the plain key since we control the hash
-    return {"Authorization": f"Bearer {test_api_key.key_hash}"}
+    # The plain key used to generate the hash
+    return {"Authorization": "Bearer di_testkey123"}
 
 
 @pytest.fixture
@@ -154,6 +169,10 @@ async def test_document(db_session: AsyncSession, test_api_key: APIKey) -> Docum
 @pytest.fixture
 async def test_analysis(db_session: AsyncSession, test_document: Document) -> Analysis:
     """Create a test analysis."""
+    test_document.status = DocumentStatus.COMPLETED
+    await db_session.commit()
+    await db_session.refresh(test_document)
+    
     analysis = Analysis(
         document_id=test_document.id,
         summary="Test summary",

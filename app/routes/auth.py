@@ -2,14 +2,14 @@
 
 from uuid import UUID
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from passlib.context import CryptContext
 
 from app.database import get_db_session
-from app.middleware.auth import verify_api_key
+from app.middleware.auth import verify_api_key, get_current_api_key
 from app.middleware.rate_limit import rate_limit_dependency
 from app.models.api_key import APIKey
 from app.schemas.auth import (
@@ -18,7 +18,7 @@ from app.schemas.auth import (
     APIKeyResponse,
     APIKeyListResponse,
 )
-from app.exceptions import NotFoundError, to_http_exception
+from app.exceptions import NotFoundError, ValidationError
 from app.logging import get_logger
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -31,11 +31,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     "/keys",
     response_model=APIKeyCreateResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def create_api_key(
     request: APIKeyCreate,
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> APIKeyCreateResponse:
     """Create a new API key (requires existing valid key)."""
@@ -50,7 +50,7 @@ async def create_api_key(
     # Calculate expiration
     expires_at = None
     if request.expires_in_days:
-        expires_at = datetime.utcnow() + timedelta(days=request.expires_in_days)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=request.expires_in_days)
 
     # Create key
     new_key = APIKey(
@@ -80,10 +80,10 @@ async def create_api_key(
 @router.get(
     "/keys",
     response_model=APIKeyListResponse,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def list_api_keys(
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> APIKeyListResponse:
     """List all API keys for the authenticated key (admin-like)."""
@@ -115,11 +115,11 @@ async def list_api_keys(
 @router.get(
     "/keys/{key_id}",
     response_model=APIKeyResponse,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def get_api_key(
     key_id: UUID,
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> APIKeyResponse:
     """Get API key details (without the key itself)."""
@@ -128,7 +128,7 @@ async def get_api_key(
     key = result.scalar_one_or_none()
 
     if not key:
-        raise to_http_exception(NotFoundError("API Key", str(key_id)))
+        raise NotFoundError("API Key", str(key_id))
 
     return APIKeyResponse(
         id=key.id,
@@ -146,11 +146,11 @@ async def get_api_key(
 @router.delete(
     "/keys/{key_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def revoke_api_key(
     key_id: UUID,
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
     """Revoke an API key."""
@@ -159,12 +159,11 @@ async def revoke_api_key(
     key = result.scalar_one_or_none()
 
     if not key:
-        raise to_http_exception(NotFoundError("API Key", str(key_id)))
+        raise NotFoundError("API Key", str(key_id))
 
     # Prevent self-revocation
     if key.id == api_key.id:
-        from app.exceptions import ValidationError
-        raise to_http_exception(ValidationError("Cannot revoke your own API key"))
+        raise ValidationError("Cannot revoke your own API key")
 
     key.is_active = False
     await db.commit()

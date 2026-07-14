@@ -14,7 +14,7 @@ DANGEROUS_PATTERNS = [
     r"\.\./",           # Path traversal
     r"\.\.\\",          # Windows path traversal
     r"[<>:\"|?*]",      # Windows reserved chars
-    r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$",  # Windows reserved names
+    r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..+)?$",  # Windows reserved names (with or without extension)
 ]
 
 
@@ -81,6 +81,15 @@ def _validate_magic_bytes(content: bytes, mime_type: str) -> None:
         if not valid:
             raise ValidationError(
                 f"File content does not match declared type: {mime_type}"
+            )
+
+    # Cross-check: reject content that matches a different known type
+    for known_type, magics in magic_bytes.items():
+        if known_type == mime_type:
+            continue
+        if any(content.startswith(magic) for magic in magics):
+            raise ValidationError(
+                f"File content appears to be {known_type}, not {mime_type}"
             )
 
 

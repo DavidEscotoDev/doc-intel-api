@@ -12,6 +12,9 @@ from app.logging import setup_logging, get_logger
 from app.telemetry import setup_telemetry
 from app.routes import upload, process, query, health, auth
 from app.middleware.logging import RequestLoggingMiddleware
+from app.exceptions import AppException, to_http_exception
+from app.middleware.rate_limit import init_rate_limiter, close_rate_limiter
+from fastapi.responses import JSONResponse
 from app.security.headers import SecurityHeadersMiddleware
 
 logger = get_logger(__name__)
@@ -38,9 +41,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
     logger.info("database_initialized")
 
+    # Initialize rate limiter
+    await init_rate_limiter()
+    logger.info("rate_limiter_initialized")
+
     yield
 
     # Shutdown
+    await close_rate_limiter()
     await close_db()
     logger.info("application_shutdown")
 
@@ -58,6 +66,15 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if settings.is_development else None,
         lifespan=lifespan,
     )
+
+    # Global exception handler for AppException
+    @app.exception_handler(AppException)
+    async def app_exception_handler(request, exc: AppException):
+        http_exc = to_http_exception(exc)
+        return JSONResponse(
+            status_code=http_exc.status_code,
+            content=http_exc.detail,
+        )
 
     # Security headers (first, so they apply to all responses)
     app.add_middleware(SecurityHeadersMiddleware)

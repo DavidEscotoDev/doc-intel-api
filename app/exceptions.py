@@ -119,6 +119,9 @@ class LLMError(AppException):
 
 def to_http_exception(exc: AppException) -> HTTPException:
     """Convert AppException to FastAPI HTTPException."""
+    headers = None
+    if isinstance(exc, RateLimitError):
+        headers = {"Retry-After": str(exc.details.get("retry_after", 60))}
     return HTTPException(
         status_code=exc.status_code,
         detail={
@@ -128,4 +131,5 @@ def to_http_exception(exc: AppException) -> HTTPException:
                 "details": exc.details,
             }
         },
+        headers=headers,
     )

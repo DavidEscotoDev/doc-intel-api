@@ -65,9 +65,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # Add rate limit headers if available
             if hasattr(request.state, "rate_limit_info"):
                 info = request.state.rate_limit_info
-                response.headers["X-RateLimit-Limit"] = str(info.limit)
-                response.headers["X-RateLimit-Remaining"] = str(max(0, info.remaining))
-                response.headers["X-RateLimit-Reset"] = str(info.reset)
+                response.headers["X-Rate-Limit-Limit"] = str(info.limit)
+                response.headers["X-Rate-Limit-Remaining"] = str(max(0, info.remaining))
+                response.headers["X-Rate-Limit-Reset"] = str(info.reset)
 
             # Log response
             logger.info(

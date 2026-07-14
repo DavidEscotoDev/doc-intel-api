@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import Request
@@ -99,7 +99,7 @@ class TestVerifyAPIKey:
             name="Expired Key",
             rate_limit=100,
             is_active=True,
-            expires_at=datetime.utcnow() - timedelta(days=1),
+            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
 
         mock_request.headers = {"authorization": "Bearer di_test_shortkey"}

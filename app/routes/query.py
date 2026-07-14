@@ -8,17 +8,15 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db_session
-from app.middleware.auth import verify_api_key
+from app.middleware.auth import verify_api_key, get_current_api_key
 from app.middleware.rate_limit import rate_limit_dependency
 from app.models.document import Document, DocumentStatus
 from app.models.analysis import Analysis
 from app.schemas.document import DocumentListResponse, DocumentListItem
 from app.schemas.analysis import AnalysisResponse, AnalysisDetailResponse
 from app.schemas.common import PaginatedResponse
-from app.exceptions import NotFoundError, to_http_exception
+from app.exceptions import NotFoundError, ValidationError
 from app.logging import get_logger
-from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/query", tags=["Query"])
 logger = get_logger(__name__)
@@ -27,13 +25,13 @@ logger = get_logger(__name__)
 @router.get(
     "/documents",
     response_model=DocumentListResponse,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def query_documents(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     status: Optional[str] = Query(None),
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> DocumentListResponse:
     """List documents with pagination and optional status filter."""
@@ -45,8 +43,7 @@ async def query_documents(
             status_enum = DocumentStatus(status)
             query = query.where(Document.status == status_enum)
         except ValueError:
-            from app.exceptions import ValidationError, to_http_exception
-            raise to_http_exception(ValidationError(f"Invalid status: {status}"))
+            raise ValidationError(f"Invalid status: {status}")
 
     # Total count
     from sqlalchemy import func
@@ -88,12 +85,12 @@ async def query_documents(
 @router.get(
     "/documents/{document_id}",
     response_model=AnalysisDetailResponse,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def get_document_analysis(
     document_id: UUID,
     include_raw: bool = Query(False),
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> AnalysisDetailResponse:
     """Get full analysis results for a document."""
@@ -108,12 +105,10 @@ async def get_document_analysis(
     document = doc_result.scalar_one_or_none()
 
     if not document:
-        from app.exceptions import NotFoundError, to_http_exception
-        raise to_http_exception(NotFoundError("Document", str(document_id)))
+        raise NotFoundError("Document", str(document_id))
 
     if document.status != DocumentStatus.COMPLETED:
-        from app.exceptions import NotFoundError, to_http_exception
-        raise to_http_exception(NotFoundError("Analysis not available - document not processed", str(document_id)))
+        raise NotFoundError("Analysis not available - document not processed", str(document_id))
 
     # Get analysis
     analysis_result = await db.execute(
@@ -122,8 +117,7 @@ async def get_document_analysis(
     analysis = analysis_result.scalar_one_or_none()
 
     if not analysis:
-        from app.exceptions import NotFoundError, to_http_exception
-        raise to_http_exception(NotFoundError("Analysis", str(document_id)))
+        raise NotFoundError("Analysis", str(document_id))
 
     response = AnalysisDetailResponse(
         id=analysis.id,
@@ -150,10 +144,10 @@ async def get_document_analysis(
 @router.get(
     "/stats",
     response_model=dict,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def get_stats(
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Get usage statistics for the API key."""

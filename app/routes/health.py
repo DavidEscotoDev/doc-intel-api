@@ -1,9 +1,9 @@
 """Health check endpoints."""
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from datetime import datetime
 
 from app.database import get_db_session
 from app.config import get_settings
@@ -36,7 +36,7 @@ async def health_check(
         version="1.0.0",
         environment=settings.env,
         database=db_status,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
     )
 
 

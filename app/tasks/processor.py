@@ -1,6 +1,7 @@
 """Background document processing task."""
 
 import time
+from datetime import datetime, timezone
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -82,7 +83,7 @@ async def process_document_task(document_id: str) -> None:
 
             # Mark completed
             document.status = DocumentStatus.COMPLETED
-            document.processed_at = time.time()
+            document.processed_at = datetime.now(timezone.utc)
 
             await session.commit()
 

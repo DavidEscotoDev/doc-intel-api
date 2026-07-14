@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.database import get_db_session
-from app.middleware.auth import verify_api_key
+from app.middleware.auth import verify_api_key, get_current_api_key
 from app.middleware.rate_limit import rate_limit_dependency
 from app.services.storage import get_storage_service
 from app.models.document import Document, DocumentStatus
@@ -29,11 +29,11 @@ logger = get_logger(__name__)
     "/upload",
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def upload_document(
     file: UploadFile = File(...),
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> DocumentUploadResponse:
     """Upload a document for processing."""
@@ -86,13 +86,13 @@ async def upload_document(
 @router.get(
     "/list",
     response_model=DocumentListResponse,
-    dependencies=[Depends(rate_limit_dependency)],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def list_documents(
     page: int = 1,
     page_size: int = 20,
     status_filter: str | None = None,
-    api_key = Depends(verify_api_key),
+    api_key = Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> DocumentListResponse:
     """List uploaded documents with pagination."""

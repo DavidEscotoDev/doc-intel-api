@@ -75,6 +75,10 @@ class InMemoryRateLimiter(RateLimitBackend):
         if key in self._requests:
             del self._requests[key]
 
+    def clear_all(self) -> None:
+        """Clear all rate limit data (for testing)."""
+        self._requests.clear()
+
 
 class RedisRateLimiter(RateLimitBackend):
     """Redis-backed rate limiter (distributed)."""
@@ -182,6 +186,14 @@ async def init_rate_limiter() -> None:
     logger.info("rate_limiter_initialized", backend=type(backend).__name__)
 
 
+async def reset_rate_limiter() -> None:
+    """Reset rate limiter for testing."""
+    global _rate_limiter
+    if _rate_limiter and hasattr(_rate_limiter.backend, "clear_all"):
+        _rate_limiter.backend.clear_all()
+    _rate_limiter = None
+
+
 async def close_rate_limiter() -> None:
     """Close rate limiter connections."""
     global _rate_limiter
@@ -205,7 +217,7 @@ async def rate_limit_dependency(
     # Add rate limit headers
     request.state.rate_limit_info = info
 
-    if info.remaining < 0:
+    if info.remaining <= 0:
         logger.warning(
             "rate_limit_exceeded",
             api_key_id=str(api_key.id),

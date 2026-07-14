@@ -1,5 +1,5 @@
 """API Key authentication middleware."""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,12 +60,12 @@ async def verify_api_key(
         raise to_http_exception(AuthenticationError())
 
     # Check expiration
-    if matched_key.expires_at and matched_key.expires_at < datetime.utcnow():
+    if matched_key.expires_at and matched_key.expires_at < datetime.now(timezone.utc):
         logger.warning("auth_key_expired", key_id=str(matched_key.id))
         raise to_http_exception(AuthenticationError("API key has expired"))
 
     # Update last used
-    matched_key.last_used_at = datetime.utcnow()
+    matched_key.last_used_at = datetime.now(timezone.utc)
     matched_key.total_requests += 1
     await db.commit()
 
