@@ -16,17 +16,17 @@ AI-powered document analysis API built with FastAPI. Upload PDFs, images, and Of
 
 ```mermaid
 graph TD
-    Client[Client] -->|Upload| UploadAPI[POST /api/v1/documents/upload]
-    Client -->|Analyze| ProcessAPI[POST /api/v1/process/analyze]
-    Client -->|Status| StatusAPI[GET /api/v1/process/status/{id}]
-    Client -->|Query| QueryAPI[GET /api/v1/query/documents/{id}]
+    Client[Client] -->|"Upload"| UploadAPI["POST /api/v1/documents/upload"]
+    Client -->|"Analyze"| ProcessAPI["POST /api/v1/process/analyze"]
+    Client -->|"Status"| StatusAPI["GET /api/v1/process/status/{id}"]
+    Client -->|"Query"| QueryAPI["GET /api/v1/query/documents/{id}"]
 
     UploadAPI --> Storage[(Local Storage)]
     UploadAPI --> Database[(PostgreSQL)]
 
     ProcessAPI --> Queue[Background Task]
     Queue --> Extractor[Text Extractor]
-    Extractor -->|PyMuPDF / python-docx / Tesseract| Storage
+    Extractor -->|"PyMuPDF / python-docx / Tesseract"| Storage
     Extractor --> LLM[Claude 3.5 Sonnet]
     LLM --> Database
 
