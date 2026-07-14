@@ -2,13 +2,13 @@
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Optional
+
 from fastapi import Depends, Request
 
 from app.config import get_settings
-from app.middleware.auth import get_current_api_key
 from app.exceptions import RateLimitError, to_http_exception
 from app.logging import get_logger
+from app.middleware.auth import get_current_api_key
 
 logger = get_logger(__name__)
 
@@ -16,10 +16,11 @@ logger = get_logger(__name__)
 @dataclass
 class RateLimitInfo:
     """Rate limit information for response headers."""
+
     limit: int
     remaining: int
     reset: int
-    retry_after: Optional[int] = None
+    retry_after: int | None = None
 
 
 class InMemoryRateLimiter:
@@ -65,7 +66,7 @@ class InMemoryRateLimiter:
 
 
 # Global rate limiter instance
-_rate_limiter: Optional[InMemoryRateLimiter] = None
+_rate_limiter: InMemoryRateLimiter | None = None
 
 
 def get_rate_limiter() -> InMemoryRateLimiter:
@@ -99,7 +100,7 @@ async def close_rate_limiter() -> None:
 
 async def rate_limit_dependency(
     request: Request,
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
 ) -> None:
     """FastAPI dependency for rate limiting."""
     limiter = get_rate_limiter()
@@ -108,7 +109,9 @@ async def rate_limit_dependency(
     # Use API key ID as rate limit identifier
     identifier = f"apikey:{api_key.id}"
 
-    info = await limiter.check_limit(identifier, settings.rate_limit_requests, settings.rate_limit_window)
+    info = await limiter.check_limit(
+        identifier, settings.rate_limit_requests, settings.rate_limit_window
+    )
 
     # Add rate limit headers
     request.state.rate_limit_info = info

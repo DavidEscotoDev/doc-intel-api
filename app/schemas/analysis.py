@@ -1,8 +1,8 @@
 """Analysis-related schemas (now from Document model)."""
-from typing import Optional
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 
 class AnalysisDetailResponse(BaseModel):
@@ -19,4 +19,4 @@ class AnalysisDetailResponse(BaseModel):
     model_version: str
     processing_time_ms: int
     created_at: datetime
-    raw_response: Optional[dict] = None
+    raw_response: dict | None = None

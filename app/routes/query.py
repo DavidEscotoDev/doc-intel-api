@@ -1,20 +1,19 @@
 """Query endpoints for retrieving analysis results."""
 
 from uuid import UUID
-from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from app.database import get_db_session
-from app.middleware.auth import verify_api_key, get_current_api_key
+from app.exceptions import NotFoundError
+from app.logging import get_logger
+from app.middleware.auth import get_current_api_key, verify_api_key
 from app.middleware.rate_limit import rate_limit_dependency
 from app.models.document import Document
-from app.schemas.document import DocumentListResponse, DocumentListItem
 from app.schemas.analysis import AnalysisDetailResponse
-from app.schemas.common import PaginatedResponse
-from app.exceptions import NotFoundError, ValidationError
-from app.logging import get_logger
+from app.schemas.document import DocumentListItem, DocumentListResponse
 
 router = APIRouter(prefix="/query", tags=["Query"])
 logger = get_logger(__name__)
@@ -28,8 +27,8 @@ logger = get_logger(__name__)
 async def query_documents(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    api_key = Depends(get_current_api_key),
+    status: str | None = Query(None),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> DocumentListResponse:
     """List documents with pagination and optional status filter."""
@@ -41,6 +40,7 @@ async def query_documents(
 
     # Total count
     from sqlalchemy import func
+
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query)
 
@@ -83,7 +83,7 @@ async def query_documents(
 async def get_document_analysis(
     document_id: UUID,
     include_raw: bool = Query(False),
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> AnalysisDetailResponse:
     """Get full analysis results for a document."""
@@ -132,7 +132,7 @@ async def get_document_analysis(
     dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def get_stats(
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """Get usage statistics for the API key."""
@@ -151,10 +151,12 @@ async def get_stats(
     total_docs = sum(status_counts.values())
 
     # Total tokens used
-    total_tokens = await db.scalar(
-        select(func.sum(Document.tokens_used))
-        .where(Document.api_key_id == api_key.id)
-    ) or 0
+    total_tokens = (
+        await db.scalar(
+            select(func.sum(Document.tokens_used)).where(Document.api_key_id == api_key.id)
+        )
+        or 0
+    )
 
     return {
         "api_key_id": str(api_key.id),

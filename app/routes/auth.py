@@ -1,25 +1,25 @@
 """API Key management endpoints."""
 
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
-from typing import Optional
-from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from passlib.context import CryptContext
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
-from app.middleware.auth import verify_api_key, get_current_api_key
+from app.exceptions import NotFoundError, ValidationError
+from app.logging import get_logger
+from app.middleware.auth import get_current_api_key, verify_api_key
 from app.middleware.rate_limit import rate_limit_dependency
 from app.models.api_key import APIKey
 from app.schemas.auth import (
     APIKeyCreate,
     APIKeyCreateResponse,
-    APIKeyResponse,
     APIKeyListResponse,
+    APIKeyResponse,
 )
-from app.exceptions import NotFoundError, ValidationError
-from app.logging import get_logger
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 logger = get_logger(__name__)
@@ -35,13 +35,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 )
 async def create_api_key(
     request: APIKeyCreate,
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> APIKeyCreateResponse:
     """Create a new API key (requires existing valid key)."""
 
     # Generate key
     import secrets
+
     prefix = "di_"
     random_part = secrets.token_urlsafe(32)
     plain_key = f"{prefix}{random_part}"
@@ -50,7 +51,7 @@ async def create_api_key(
     # Calculate expiration
     expires_at = None
     if request.expires_in_days:
-        expires_at = datetime.now(timezone.utc) + timedelta(days=request.expires_in_days)
+        expires_at = datetime.now(UTC) + timedelta(days=request.expires_in_days)
 
     # Create key
     new_key = APIKey(
@@ -64,7 +65,9 @@ async def create_api_key(
     await db.commit()
     await db.refresh(new_key)
 
-    logger.info("api_key_created", key_id=str(new_key.id), name=new_key.name, created_by=str(api_key.id))
+    logger.info(
+        "api_key_created", key_id=str(new_key.id), name=new_key.name, created_by=str(api_key.id)
+    )
 
     return APIKeyCreateResponse(
         id=new_key.id,
@@ -83,13 +86,13 @@ async def create_api_key(
     dependencies=[Depends(verify_api_key), Depends(rate_limit_dependency)],
 )
 async def list_api_keys(
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> APIKeyListResponse:
     """List all API keys for the authenticated key (admin-like)."""
 
     result = await db.execute(
-        select(APIKey).where(APIKey.is_active == True).order_by(APIKey.created_at.desc())
+        select(APIKey).where(APIKey.is_active is True).order_by(APIKey.created_at.desc())
     )
     keys = result.scalars().all()
 
@@ -119,7 +122,7 @@ async def list_api_keys(
 )
 async def get_api_key(
     key_id: UUID,
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> APIKeyResponse:
     """Get API key details (without the key itself)."""
@@ -150,7 +153,7 @@ async def get_api_key(
 )
 async def revoke_api_key(
     key_id: UUID,
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
     """Revoke an API key."""

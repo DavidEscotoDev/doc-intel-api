@@ -1,14 +1,15 @@
 """Text extraction from documents."""
-import pytesseract
-from PIL import Image
-import fitz
-from docx import Document as DocxDocument
 from pathlib import Path
 
+import fitz
+import pytesseract
+from docx import Document as DocxDocument
+from PIL import Image
+
 from app.config import get_settings
-from app.logging import get_logger
+from app.constants import DOCX, JPEG, MAX_TEXT_LENGTH, PDF, PNG, TIFF, TXT
 from app.exceptions import ValidationError
-from app.constants import PDF, TXT, DOCX, PNG, JPEG, TIFF, MAX_TEXT_LENGTH
+from app.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -34,7 +35,7 @@ class TextExtractor:
                 raise ValidationError(f"Unsupported MIME type: {mime_type}")
 
             if len(text) > self.max_text_length:
-                text = text[:self.max_text_length] + "\n[TRUNCATED]"
+                text = text[: self.max_text_length] + "\n[TRUNCATED]"
             return text.strip()
 
         except ValidationError:

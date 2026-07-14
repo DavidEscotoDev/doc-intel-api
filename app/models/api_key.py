@@ -4,17 +4,17 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
+
 from sqlalchemy import (
-    String,
-    Integer,
     Boolean,
     DateTime,
-    ForeignKey,
     Index,
+    Integer,
+    String,
+    Uuid,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Uuid
 
 from app.database import Base
 

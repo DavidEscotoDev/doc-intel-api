@@ -1,25 +1,21 @@
 """Document upload endpoints."""
 
-from uuid import UUID
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, UploadFile, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from app.database import get_db_session
-from app.middleware.auth import verify_api_key, get_current_api_key
+from app.logging import get_logger
+from app.middleware.auth import get_current_api_key, verify_api_key
 from app.middleware.rate_limit import rate_limit_dependency
-from app.services.storage import get_storage_service
 from app.models.document import Document
 from app.schemas.document import (
-    DocumentUploadResponse,
-    DocumentListResponse,
     DocumentListItem,
+    DocumentListResponse,
+    DocumentUploadResponse,
 )
-from app.schemas.common import PaginatedResponse
-from app.exceptions import ValidationError, to_http_exception
-from app.logging import get_logger
-from app.constants import ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
-from app.security.validation import validate_filename, validate_file_content
+from app.security.validation import validate_file_content, validate_filename
+from app.services.storage import get_storage_service
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 logger = get_logger(__name__)
@@ -33,14 +29,14 @@ logger = get_logger(__name__)
 )
 async def upload_document(
     file: UploadFile = File(...),
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> DocumentUploadResponse:
     """Upload a document for processing."""
 
     # Validate file using security validation
     validate_filename(file.filename)
-    
+
     # Read and validate file content
     content = await file.read()
     validate_file_content(file, content)
@@ -48,10 +44,9 @@ async def upload_document(
     # Save to storage
     storage = get_storage_service()
     from io import BytesIO
+
     file_obj = BytesIO(content)
-    storage_key, file_size = await storage.save_upload(
-        file_obj, file.filename, file.content_type
-    )
+    storage_key, file_size = await storage.save_upload(file_obj, file.filename, file.content_type)
 
     # Create document record
     document = Document(
@@ -92,7 +87,7 @@ async def list_documents(
     page: int = 1,
     page_size: int = 20,
     status_filter: str | None = None,
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> DocumentListResponse:
     """List uploaded documents with pagination."""

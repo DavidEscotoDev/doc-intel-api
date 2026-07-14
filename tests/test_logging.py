@@ -2,7 +2,8 @@
 """Tests for logging module."""
 
 import logging
-from app.logging import setup_logging, get_logger, add_service_info, drop_color_message_key
+
+from app.logging import add_service_info, drop_color_message_key, get_logger, setup_logging
 
 
 class TestSetupLogging:

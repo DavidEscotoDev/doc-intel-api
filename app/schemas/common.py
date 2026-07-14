@@ -1,9 +1,11 @@
 """Common schema definitions."""
-from typing import Generic, TypeVar, Optional
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
+from typing import Generic, TypeVar
+
+from pydantic import BaseModel, ConfigDict
 
 T = TypeVar("T")
+
 
 class PaginatedResponse(BaseModel, Generic[T]):
     model_config = ConfigDict(from_attributes=True)
@@ -12,19 +14,26 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
     total_pages: int
+
     @property
-    def has_next(self) -> bool: return self.page < self.total_pages
+    def has_next(self) -> bool:
+        return self.page < self.total_pages
+
     @property
-    def has_prev(self) -> bool: return self.page > 1
+    def has_prev(self) -> bool:
+        return self.page > 1
+
 
 class ErrorDetail(BaseModel):
     code: str
     message: str
-    details: Optional[dict] = None
+    details: dict | None = None
+
 
 class ErrorResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     error: ErrorDetail
+
 
 class HealthResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

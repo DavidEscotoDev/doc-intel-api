@@ -4,7 +4,6 @@
 import asyncio
 import os
 from collections.abc import AsyncGenerator, Generator
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -15,13 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.config import Settings, get_settings
-import app.middleware.rate_limit as rate_limit_module
-from app.middleware.rate_limit import init_rate_limiter, reset_rate_limiter
 from app.database import Base, get_db_session
 from app.main import create_app
+from app.middleware.rate_limit import init_rate_limiter, reset_rate_limiter
 from app.models.api_key import APIKey
 from app.models.document import Document
-
 
 # Test settings
 os.environ["APP_ENV"] = "test"
@@ -44,7 +41,7 @@ def test_settings() -> Settings:
     return get_settings()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def db_engine(test_settings: Settings):
     """Create test database engine."""
     engine = create_async_engine(
@@ -62,7 +59,7 @@ async def db_engine(test_settings: Settings):
     await engine.dispose()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create test database session."""
     async_session = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
@@ -71,11 +68,13 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def override_get_db(db_session: AsyncSession):
     """Override database dependency."""
+
     async def _override_get_db():
         yield db_session
+
     return _override_get_db
 
 
@@ -97,7 +96,7 @@ async def _reset_rate_limiter(app):
     await init_rate_limiter()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
     """Create async test client."""
     transport = ASGITransport(app=app)
@@ -105,13 +104,13 @@ async def client(app) -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
 
-@pytest.fixture
+@pytest.fixture()
 def fake() -> Faker:
     """Faker instance for test data."""
     return Faker()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_anthropic_client() -> MagicMock:
     """Mock Anthropic client."""
     client = MagicMock()
@@ -119,10 +118,11 @@ def mock_anthropic_client() -> MagicMock:
     return client
 
 
-@pytest.fixture
+@pytest.fixture()
 async def test_api_key(db_session: AsyncSession) -> APIKey:
     """Create a test API key."""
     from passlib.context import CryptContext
+
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     plain_key = "di_testkey123"
     key_hash = pwd_context.hash(plain_key)
@@ -139,13 +139,13 @@ async def test_api_key(db_session: AsyncSession) -> APIKey:
     return api_key
 
 
-@pytest.fixture
+@pytest.fixture()
 def auth_headers(test_api_key: APIKey) -> dict[str, str]:
     """Authorization headers for test API key."""
     return {"Authorization": "Bearer di_testkey123"}
 
 
-@pytest.fixture
+@pytest.fixture()
 async def test_document(db_session: AsyncSession, test_api_key: APIKey) -> Document:
     """Create a test document."""
     doc = Document(
@@ -162,7 +162,7 @@ async def test_document(db_session: AsyncSession, test_api_key: APIKey) -> Docum
     return doc
 
 
-@pytest.fixture
+@pytest.fixture()
 async def test_completed_document(db_session: AsyncSession, test_api_key: APIKey) -> Document:
     """Create a test completed document with analysis."""
     doc = Document(

@@ -1,19 +1,20 @@
 # app/main.py
 """FastAPI application factory."""
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.database import init_db, close_db
-from app.logging import setup_logging, get_logger
-from app.routes import upload, process, query, health, auth
-from app.middleware.logging import RequestLoggingMiddleware
+from app.database import close_db, init_db
 from app.exceptions import AppException, to_http_exception
-from app.middleware.rate_limit import init_rate_limiter, close_rate_limiter
+from app.logging import get_logger, setup_logging
+from app.middleware.logging import RequestLoggingMiddleware
+from app.middleware.rate_limit import close_rate_limiter, init_rate_limiter
+from app.routes import auth, health, process, query, upload
 
 logger = get_logger(__name__)
 
@@ -93,6 +94,7 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
+
     settings = get_settings()
     uvicorn.run(
         "app.main:app",

@@ -1,19 +1,17 @@
 """Input validation and sanitization."""
 
 import re
-from pathlib import Path
-from typing import Optional
-from fastapi import UploadFile, HTTPException, status
 
-from app.exceptions import ValidationError
+from fastapi import UploadFile
+
 from app.constants import ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES
-
+from app.exceptions import ValidationError
 
 # Dangerous patterns for filename validation
 DANGEROUS_PATTERNS = [
-    r"\.\./",           # Path traversal
-    r"\.\.\\",          # Windows path traversal
-    r"[<>:\"|?*]",      # Windows reserved chars
+    r"\.\./",  # Path traversal
+    r"\.\.\\",  # Windows path traversal
+    r"[<>:\"|?*]",  # Windows reserved chars
     r"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..+)?$",  # Windows reserved names (with or without extension)
 ]
 
@@ -35,7 +33,7 @@ def validate_filename(filename: str) -> str:
             raise ValidationError("Filename contains invalid characters")
 
     # Allow only safe characters
-    if not re.match(r'^[\w\s\-_\(\)\[\]\.]+$', filename):
+    if not re.match(r"^[\w\s\-_\(\)\[\]\.]+$", filename):
         raise ValidationError("Filename contains invalid characters")
 
     return filename
@@ -79,18 +77,14 @@ def _validate_magic_bytes(content: bytes, mime_type: str) -> None:
     if mime_type in magic_bytes:
         valid = any(content.startswith(magic) for magic in magic_bytes[mime_type])
         if not valid:
-            raise ValidationError(
-                f"File content does not match declared type: {mime_type}"
-            )
+            raise ValidationError(f"File content does not match declared type: {mime_type}")
 
     # Cross-check: reject content that matches a different known type
     for known_type, magics in magic_bytes.items():
         if known_type == mime_type:
             continue
         if any(content.startswith(magic) for magic in magics):
-            raise ValidationError(
-                f"File content appears to be {known_type}, not {mime_type}"
-            )
+            raise ValidationError(f"File content appears to be {known_type}, not {mime_type}")
 
 
 def sanitize_text(text: str, max_length: int = 100000) -> str:

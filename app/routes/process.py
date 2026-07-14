@@ -1,18 +1,19 @@
 """Document processing endpoints."""
 
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
-from app.middleware.auth import verify_api_key, get_current_api_key
+from app.exceptions import NotFoundError, ValidationError
+from app.logging import get_logger
+from app.middleware.auth import get_current_api_key, verify_api_key
 from app.middleware.rate_limit import rate_limit_dependency
 from app.models.document import Document
 from app.schemas.document import DocumentProcessRequest, DocumentStatusResponse
 from app.tasks.processor import process_document_task
-from app.exceptions import NotFoundError, ValidationError
-from app.logging import get_logger
 
 router = APIRouter(prefix="/process", tags=["Processing"])
 logger = get_logger(__name__)
@@ -27,7 +28,7 @@ logger = get_logger(__name__)
 async def analyze_document(
     request: DocumentProcessRequest,
     background_tasks: BackgroundTasks,
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> DocumentStatusResponse:
     """Trigger document analysis (async background processing)."""
@@ -48,7 +49,9 @@ async def analyze_document(
         raise ValidationError("Document is already being processed")
 
     if document.status == "completed":
-        raise ValidationError("Document has already been processed. Use /query to retrieve results.")
+        raise ValidationError(
+            "Document has already been processed. Use /query to retrieve results."
+        )
 
     # Queue background task
     background_tasks.add_task(process_document_task, str(document.id))
@@ -73,7 +76,7 @@ async def analyze_document(
 )
 async def get_processing_status(
     document_id: UUID,
-    api_key = Depends(get_current_api_key),
+    api_key=Depends(get_current_api_key),
     db: AsyncSession = Depends(get_db_session),
 ) -> DocumentStatusResponse:
     """Get document processing status."""

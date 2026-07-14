@@ -1,8 +1,10 @@
 # app/database.py
 """Database connection and session management."""
 
+import ssl
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -10,7 +12,6 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
-import ssl
 
 from app.config import get_settings
 from app.logging import get_logger
@@ -20,6 +21,7 @@ logger = get_logger(__name__)
 
 class Base(DeclarativeBase):
     """Base class for all models."""
+
     pass
 
 
@@ -30,7 +32,7 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 def _normalize_database_url(url: str) -> str:
     """Normalize database URL for async SQLAlchemy.
-    
+
     Render provides postgresql:// but asyncpg needs postgresql+asyncpg://
     """
     if url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
@@ -54,13 +56,13 @@ def _get_engine() -> AsyncEngine:
     if _engine is None:
         settings = get_settings()
         normalized_url = _normalize_database_url(settings.database_url)
-        
+
         # Build connect args with SSL for Render PostgreSQL
         connect_args = {}
         if normalized_url.startswith("postgresql+asyncpg://"):
             # Render PostgreSQL requires SSL
             connect_args["ssl"] = _get_ssl_context()
-        
+
         _engine = create_async_engine(
             normalized_url,
             pool_size=settings.database_pool_size,

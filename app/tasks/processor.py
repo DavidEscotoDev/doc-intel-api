@@ -1,18 +1,19 @@
 """Background document processing task."""
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from app.database import _get_session_factory, init_db, close_db
-from app.models.document import Document
-from app.services.storage import get_storage_service
-from app.services.extractor import get_text_extractor
-from app.services.llm import get_llm_service
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import _get_session_factory, close_db, init_db
 from app.exceptions import ValidationError
 from app.logging import get_logger
+from app.models.document import Document
+from app.services.extractor import get_text_extractor
+from app.services.llm import get_llm_service
+from app.services.storage import get_storage_service
 
 logger = get_logger(__name__)
 
@@ -30,9 +31,7 @@ async def process_document_task(document_id: str) -> None:
     async with session_factory() as session:
         try:
             # Get document
-            result = await session.execute(
-                select(Document).where(Document.id == doc_uuid)
-            )
+            result = await session.execute(select(Document).where(Document.id == doc_uuid))
             document = result.scalar_one_or_none()
 
             if not document:
@@ -79,7 +78,7 @@ async def process_document_task(document_id: str) -> None:
 
             # Mark completed
             document.status = "completed"
-            document.processed_at = datetime.now(timezone.utc)
+            document.processed_at = datetime.now(UTC)
 
             await session.commit()
 

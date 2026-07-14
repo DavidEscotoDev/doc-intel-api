@@ -3,10 +3,11 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
+import yaml
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import yaml
 
 
 class Settings(BaseSettings):
@@ -52,14 +53,18 @@ class Settings(BaseSettings):
     # Storage
     storage_provider: str = Field("local", alias="STORAGE_PROVIDER")
     local_storage_path: str = Field("/app/data/uploads", alias="LOCAL_STORAGE_PATH")
-    azure_storage_account: Optional[str] = Field(None, alias="AZURE_STORAGE_ACCOUNT")
+    azure_storage_account: str | None = Field(None, alias="AZURE_STORAGE_ACCOUNT")
     azure_storage_container: str = Field("documents", alias="AZURE_STORAGE_CONTAINER")
-    azure_storage_connection_string: Optional[str] = Field(None, alias="AZURE_STORAGE_CONNECTION_STRING")
+    azure_storage_connection_string: str | None = Field(
+        None, alias="AZURE_STORAGE_CONNECTION_STRING"
+    )
     max_file_size_mb: int = 50
 
     # Azure
-    azure_key_vault_url: Optional[str] = Field(None, alias="AZURE_KEY_VAULT_URL")
-    azure_monitor_connection_string: Optional[str] = Field(None, alias="AZURE_MONITOR_CONNECTION_STRING")
+    azure_key_vault_url: str | None = Field(None, alias="AZURE_KEY_VAULT_URL")
+    azure_monitor_connection_string: str | None = Field(
+        None, alias="AZURE_MONITOR_CONNECTION_STRING"
+    )
 
     # Processing
     ocr_language: str = Field("eng", alias="OCR_LANGUAGE")
@@ -73,7 +78,7 @@ class Settings(BaseSettings):
 
     # Telemetry
     otel_service_name: str = Field("document-intelligence-api", alias="OTEL_SERVICE_NAME")
-    otel_exporter_endpoint: Optional[str] = Field(None, alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    otel_exporter_endpoint: str | None = Field(None, alias="OTEL_EXPORTER_OTLP_ENDPOINT")
 
     @property
     def is_production(self) -> bool:

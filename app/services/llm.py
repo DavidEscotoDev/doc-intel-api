@@ -6,8 +6,8 @@ from dataclasses import dataclass
 import anthropic
 
 from app.config import get_settings
-from app.logging import get_logger
 from app.exceptions import ValidationError
+from app.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -54,10 +54,14 @@ class LLMService:
                     messages=[{"role": "user", "content": f"Analyze:\n\n{text}"}],
                 )
                 break
-            except (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.APIStatusError) as e:
+            except (
+                anthropic.RateLimitError,
+                anthropic.APIConnectionError,
+                anthropic.APIStatusError,
+            ) as e:
                 if attempt == 2:
                     raise ValidationError(f"LLM failed after retries: {e}") from e
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
 
         raw = resp.content[0].text
         data = self._parse(raw)

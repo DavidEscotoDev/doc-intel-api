@@ -2,7 +2,8 @@
 
 import time
 import uuid
-from typing import Callable
+from collections.abc import Callable
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -24,6 +25,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         # Add to contextvars for structlog
         import contextvars
+
         correlation_var = contextvars.ContextVar("correlation_id", default=None)
         token = correlation_var.set(correlation_id)
 

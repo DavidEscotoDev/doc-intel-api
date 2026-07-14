@@ -1,9 +1,10 @@
 # app/logging.py
 """Structured logging configuration with structlog."""
 
-import sys
 import logging
+import sys
 from typing import Any
+
 import structlog
 from structlog.types import EventDict, Processor
 
@@ -24,7 +25,7 @@ def drop_color_message_key(_: Any, __: Any, event_dict: EventDict) -> EventDict:
 def setup_logging(log_level: str = "INFO", json_logs: bool = False) -> None:
     """Configure structlog for structured JSON logging."""
 
-    timestamper = structlog.processors.TimeStamper(fmt="iso", utc=True)
+    structlog.processors.TimeStamper(fmt="iso", utc=True)
 
     shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
