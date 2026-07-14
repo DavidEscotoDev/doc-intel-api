@@ -38,18 +38,30 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov httpx
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/testdb
           ANTHROPIC_API_KEY: test-key
           APP_ENV: test
         run: |
-          pytest -v --cov=app --cov-report=xml
+          pytest -v --cov=app --cov-report=xml --cov-fail-under=60
 
-      - name: Upload coverage
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
+
+      - name: Generate coverage badge
+        run: |
+          pip install coverage-badge
+          coverage-badge -o coverage.svg -f
+          echo "COVERAGE=$(cat coverage.svg | grep -oP '(?<=<text[^>]*>)[^<]+' | head -1)" >> $GITHUB_ENV
+
+      - name: Upload coverage badge
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge
+          path: coverage.svg
 
   lint:
     runs-on: ubuntu-latest

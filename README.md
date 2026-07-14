@@ -1,16 +1,47 @@
 # Document Intelligence API
 
-AI-powered document analysis API built with FastAPI. Upload PDFs, images, and Office documents — get structured summaries, key points, entities, sentiment, and topics via Claude 3.5 Sonnet.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/DavidEscotoDev/doc-intel-api)
+[![CI](https://github.com/DavidEscotoDev/doc-intel-api/actions/workflows/ci.yml/badge.svg)](https://github.com/DavidEscotoDev/doc-intel-api/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/DavidEscotoDev/coverage-badge/raw/main/doc-intel-api.json)](https://github.com/DavidEscotoDev/doc-intel-api/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Features
+**TL;DR** — Production-ready FastAPI service that extracts text from PDFs, images, and Office docs, then uses Claude 3.5 Sonnet to return structured analysis (summary, key points, entities, sentiment, topics). Built for real-world use: async processing, API keys with rate limits, structured logging, Prometheus metrics, Docker deployment.
 
-- **Multi-format extraction** — PDF, DOCX, TXT, PNG, JPG, TIFF via PyMuPDF, python-docx, Tesseract OCR
-- **Structured AI analysis** — Summaries, key points, named entities, sentiment classification, topic modeling
-- **Async background processing** — Non-blocking document pipeline with status polling
-- **API key authentication** — bcrypt-hashed keys with per-key rate limiting
-- **Structured logging** — JSON output with correlation IDs for request tracing
-- **Prometheus metrics** — Request latency, throughput, error rates, token usage
-- **Production-ready** — Docker multi-stage build, non-root user, health checks, graceful shutdown
+![Demo](docs/demo.gif)  <!-- TODO: Record demo GIF showing upload → analyze → results flow -->
+
+## Live Demo
+
+**API Docs**: [https://doc-intel-api.onrender.com/docs](https://doc-intel-api.onrender.com/docs)  (Render free tier, cold start ~30s)
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| API Framework | FastAPI 0.109 |
+| Database | SQLAlchemy 2.0 (async) + PostgreSQL |
+| Auth | API Keys + bcrypt |
+| AI/ML | Anthropic SDK (Claude 3.5 Sonnet) |
+| Extraction | PyMuPDF, python-docx, Tesseract OCR |
+| Observability | structlog (JSON), Prometheus metrics |
+| Container | Docker multi-stage, non-root |
+
+## Quick Start (≤5 commands)
+
+```bash
+git clone https://github.com/DavidEscotoDev/doc-intel-api.git
+cd doc-intel-api
+cp .env.example .env  # Add ANTHROPIC_API_KEY
+docker-compose up --build
+# Open http://localhost:8000/docs
+```
+
+## What I Learned
+
+- **Production safety patterns**: bcrypt-hashed API keys, per-key rate limiting, file validation (MIME + magic bytes), path traversal prevention, non-root Docker user, graceful shutdown
+- **Observability-first design**: Structured JSON logging with correlation IDs, Prometheus metrics (latency, throughput, errors, token usage), health endpoints for liveness/readiness probes
+
+---
 
 ## Architecture
 
@@ -48,61 +79,9 @@ graph TD
 | `GET` | `/health` | Health check (DB + service) |
 | `GET` | `/metrics` | Prometheus metrics |
 
-## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- PostgreSQL 14+ (or SQLite for development)
-- Anthropic API key
-
-### Local Development
-
-```bash
-# Clone and install
-git clone https://github.com/DavidEscotoDev/doc-intel-api.git
-cd doc-intel-api
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your ANTHROPIC_API_KEY and DATABASE_URL
-
-# Run migrations and start
-alembic upgrade head
-uvicorn app.main:app --reload
-```
-
-### Docker
-
-```bash
-# Build and run with PostgreSQL
-docker-compose up --build
-```
-
-API available at `http://localhost:8000/docs`
-
-## Configuration
-
-All settings via environment variables (`.env`):
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `APP_ENV` | Environment (development/production) | `development` |
-| `DATABASE_URL` | PostgreSQL connection string | `sqlite+aiosqlite:///:memory:` |
-| `ANTHROPIC_API_KEY` | Anthropic API key | Required |
-| `ANTHROPIC_MODEL` | Model to use | `claude-3-5-sonnet-20241022` |
-| `API_KEY_PREFIX` | Prefix for generated keys | `di_` |
-| `RATE_LIMIT_REQUESTS` | Requests per window | `10` |
-| `RATE_LIMIT_WINDOW` | Window in seconds | `60` |
-| `MAX_FILE_SIZE_MB` | Max upload size | `50` |
-| `LOCAL_STORAGE_PATH` | Upload directory | `/app/data/uploads` |
-| `LOG_LEVEL` | Logging level | `INFO` |
-
 ## Example Usage
 
 ### Create API Key
-
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/keys \
   -H "Authorization: Bearer di_admin_key" \
@@ -110,19 +89,7 @@ curl -X POST http://localhost:8000/api/v1/auth/keys \
   -d '{"name": "my-app", "rate_limit": 60}'
 ```
 
-Response:
-```json
-{
-  "id": "uuid",
-  "key": "di_abc123...",
-  "name": "my-app",
-  "rate_limit": 60,
-  "created_at": "2024-01-15T10:30:00Z"
-}
-```
-
 ### Upload Document
-
 ```bash
 curl -X POST http://localhost:8000/api/v1/documents/upload \
   -H "Authorization: Bearer di_abc123..." \
@@ -130,7 +97,6 @@ curl -X POST http://localhost:8000/api/v1/documents/upload \
 ```
 
 ### Trigger Analysis
-
 ```bash
 curl -X POST http://localhost:8000/api/v1/process/analyze \
   -H "Authorization: Bearer di_abc123..." \
@@ -139,7 +105,6 @@ curl -X POST http://localhost:8000/api/v1/process/analyze \
 ```
 
 ### Get Results
-
 ```bash
 curl -X GET http://localhost:8000/api/v1/query/documents/{id} \
   -H "Authorization: Bearer di_abc123..."
@@ -161,6 +126,23 @@ Response:
   "created_at": "2024-01-15T10:35:00Z"
 }
 ```
+
+## Configuration
+
+All settings via environment variables (`.env`):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `APP_ENV` | Environment (development/production) | `development` |
+| `DATABASE_URL` | PostgreSQL connection string | `sqlite+aiosqlite:///:memory:` |
+| `ANTHROPIC_API_KEY` | Anthropic API key | **Required** |
+| `ANTHROPIC_MODEL` | Model to use | `claude-3-5-sonnet-20241022` |
+| `API_KEY_PREFIX` | Prefix for generated keys | `di_` |
+| `RATE_LIMIT_REQUESTS` | Requests per window | `10` |
+| `RATE_LIMIT_WINDOW` | Window in seconds | `60` |
+| `MAX_FILE_SIZE_MB` | Max upload size | `50` |
+| `LOCAL_STORAGE_PATH` | Upload directory | `/app/data/uploads` |
+| `LOG_LEVEL` | Logging level | `INFO` |
 
 ## Project Structure
 
@@ -196,22 +178,6 @@ app/
     └── validation.py       # Filename + content validation
 ```
 
-## Tech Stack
-
-| Category | Technology |
-|----------|------------|
-| API Framework | FastAPI 0.109 |
-| Database | SQLAlchemy 2.0 (async) + PostgreSQL |
-| ORM | SQLAlchemy 2.0 Declarative |
-| Migrations | Alembic |
-| Auth | API Keys + bcrypt |
-| AI/ML | Anthropic SDK (Claude 3.5 Sonnet) |
-| Extraction | PyMuPDF, python-docx, Tesseract |
-| Logging | structlog (JSON) |
-| Metrics | prometheus-client |
-| Container | Docker multi-stage |
-| Testing | pytest + pytest-asyncio |
-
 ## Testing
 
 ```bash
@@ -224,22 +190,21 @@ pytest --cov=app --cov-report=term-missing
 
 ## Deployment
 
-### Render (Free Tier)
+### Render (Free Tier) — Recommended
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/DavidEscotoDev/doc-intel-api)
 
-1. Connect GitHub repository
+1. Click button above or connect repo manually
 2. Select Blueprint (`render.yaml`)
 3. Add `ANTHROPIC_API_KEY` in Environment tab
-4. Deploy
+4. Deploy — live at `https://doc-intel-api.onrender.com`
 
 ### Docker
-
 ```bash
 docker build -t doc-intel-api .
 docker run -p 8000:8000 --env-file .env doc-intel-api
 ```
 
 ### Kubernetes
-
 Helm chart available in `deploy/helm/`
 
 ## Security
@@ -265,4 +230,6 @@ MIT License — see [LICENSE](LICENSE)
 
 ## Author
 
-David Escoto — [GitHub](https://github.com/DavidEscotoDev)
+**David Escoto** — 16-year-old backend developer building production systems and AI infrastructure. Seeking internships to learn software engineering best practices on real teams.
+
+[GitHub](https://github.com/DavidEscotoDev) • [LinkedIn](https://www.linkedin.com/in/david-escoto-estrada-1ab5633b9/) • Email: davidescoto.dev@gmail.com
