@@ -27,13 +27,24 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
+def _normalize_database_url(url: str) -> str:
+    """Normalize database URL for async SQLAlchemy.
+    
+    Render provides postgresql:// but asyncpg needs postgresql+asyncpg://
+    """
+    if url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
 def _get_engine() -> AsyncEngine:
     """Get or create the database engine."""
     global _engine
     if _engine is None:
         settings = get_settings()
+        normalized_url = _normalize_database_url(settings.database_url)
         _engine = create_async_engine(
-            settings.database_url,
+            normalized_url,
             pool_size=settings.database_pool_size,
             max_overflow=settings.database_max_overflow,
             pool_timeout=settings.database_pool_timeout,

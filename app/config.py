@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Environment
     env: str = Field("development", alias="APP_ENV")
     host: str = Field("0.0.0.0", alias="APP_HOST")
-    port: int = Field(8000, alias="APP_PORT")
+    port: int = Field(8000, alias="APP_PORT", validation_alias="PORT")
     workers: int = Field(1, alias="APP_WORKERS")
     log_level: str = Field("INFO", alias="LOG_LEVEL")
 
