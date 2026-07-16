@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**TL;DR** — Production-ready FastAPI service that extracts text from PDFs, images, and Office docs, then uses Claude 3.5 Sonnet to return structured analysis (summary, key points, entities, sentiment, topics). Built for real-world use: async processing, API keys with rate limits, structured logging, Prometheus metrics, Docker deployment.
+**TL;DR** — FastAPI service that extracts text from PDFs, images, and Office docs, then uses Claude 3.5 Sonnet to return structured analysis (summary, key points, entities, sentiment, topics). Built for real-world use: async processing, API keys with rate limits, structured logging, Prometheus metrics, Docker deployment.
 
 ![Demo](docs/demo.gif)  <!-- TODO: Record demo GIF showing upload → analyze → results flow -->
 
